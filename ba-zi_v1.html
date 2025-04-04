@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>八字推算</title>
+    <style>
+        /* Base Styles */
+        body { 
+            font-family: "Microsoft YaHei", "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif; 
+            line-height: 1.7; 
+            padding: 15px; 
+            background-color: #f8f9fa; 
+            color: #343a40; 
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px; /* Max width for large screens */
+            margin: 0 auto; /* Center content */
+        }
+        h1, h2 { text-align: center; color: #343a40; margin-bottom: 1.5em; }
+        h1 { margin-top: 0; }
+        #inputForm, #outputArea { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); margin-bottom: 25px; }
+        
+        /* Input Area Styling */
+        .input-section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #dee2e6; }
+        .input-section:last-child { border-bottom: none; }
+        
+        label { display: inline-block; margin-right: 5px; margin-bottom: 10px; font-weight: bold; min-width: 90px; vertical-align: middle;}
+        select, button, textarea { padding: 9px 12px; border: 1px solid #ced4da; border-radius: 4px; margin-right: 10px; margin-bottom: 10px; font-size: 1em; vertical-align: middle;}
+        textarea#pillarInputText { /* Specific ID */
+            width: calc(100% - 160px); /* Default width */
+            min-height: 40px; 
+            resize: vertical; 
+            display: inline-block; /* Align with button */
+        }
+        button { background-color: #007bff; color: white; cursor: pointer; transition: background-color 0.3s; border: none; padding: 10px 15px;}
+        button:hover { background-color: #0056b3; }
+        button.parse-button { background-color: #28a745; margin-left: 0; } /* Removed margin-left */
+        button.parse-button:hover { background-color: #218838; }
+        button.calculate-button { padding: 12px 25px; font-size: 1.1em; margin-top: 15px; display: block; margin-left: auto; margin-right: auto;}
+        .quick-input-note { font-size: 0.85em; color: #6c757d; margin-left: 100px; display: block; margin-top: -5px; margin-bottom: 10px;}
+
+        /* Input Pillar Styles */
+        .input-pillars { display: flex; justify-content: space-around; margin-top: 15px; margin-bottom: 15px; flex-wrap: wrap; } /* Added flex-wrap */
+        .pillar { display: flex; flex-direction: column; align-items: center; margin: 0 5px 15px 5px; /* Added bottom margin */ } 
+        .pillar label { font-weight: bold; margin-bottom: 8px; font-size: 0.9em; color: #495057; }
+        .pillar select { padding: 8px 5px; margin-bottom: 5px; font-size: 1em; width: 70px; /* Increased width slightly */ text-align: center; -moz-appearance: none; -webkit-appearance: none; appearance: none; background-color: #fff; border: 1px solid #ced4da; border-radius: 4px; }
+
+        /* Output Styles */
+        #outputArea { display: none; }
+        #basicInfo p { margin: 8px 0; font-size: 1.1em; word-wrap: break-word; } /* Added word-wrap */
+        #basicInfo strong { color: #495057; margin-right: 5px;}
+        
+        /* Table Responsive Wrapper */
+        .table-responsive { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */ margin-top: 20px; }
+        #shishenTable { width: 100%; min-width: 800px; /* Ensure minimum width for readability even when scrolling */ border-collapse: collapse; }
+        #shishenTable th, #shishenTable td { border: 1px solid #e9ecef; padding: 10px 12px; text-align: center; font-size: 1em; white-space: nowrap; /* Prevent text wrapping in cells */ }
+        #shishenTable th { background-color: #e9ecef; color: #495057; font-weight: bold; }
+        
+        /* Background colors & Text Styling (Same as V2.2) */
+        .shishen-type-bijie { background-color: #e6f4ea; } .shishen-type-shishang { background-color: #fff0f0; } .shishen-type-caixing { background-color: #fff9e6; } .shishen-type-guansha { background-color: #ffffff; } .shishen-type-yinxiao { background-color: #f1f3f5; }
+        .shishen-name { font-weight: bold; } .shishen-stem { color: #6c757d; font-size: 0.9em; }
+        .xi-ji { font-weight: bold; } .yong { color: red; } .ji { color: black; }
+        .ji-text { color: red; font-weight: bold;} .xiong-text { color: black; font-weight: bold;}
+        .degree-text { font-weight: bold; } .ji-plus { color: red; } .xiong-plus { color: black; } .ji-minus { color: darkred; } .xiong-minus { color: dimgray; }
+
+        #legend { margin-top: 20px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.95em;}
+        #legend p { margin: 5px 0; }
+        #logArea { width: calc(100% - 22px); height: 250px; margin-top: 20px; font-family: monospace; font-size: 1em; border: 1px solid #ced4da; border-radius: 4px; padding: 10px; background-color: #f1f3f5; line-height: 1.5; }
+
+        /* Media Queries for Responsiveness */
+        @media screen and (max-width: 768px) {
+            body { padding: 10px; }
+            h1 { font-size: 1.8em; }
+            h2 { font-size: 1.5em; }
+            #inputForm, #outputArea { padding: 15px; }
+            .container { padding: 0; /* No padding on small screens */ }
+            
+            /* Adjust quick input layout */
+            label[for="pillarInputText"] { display: block; margin-bottom: 5px; } /* Label on top */
+            textarea#pillarInputText { width: calc(100% - 100px); /* Adjust width */ }
+            button.parse-button { width: 80px; /* Fixed width */ }
+            .quick-input-note { margin-left: 0; margin-top: 5px; }
+
+            /* Adjust pillar layout */
+            .input-pillars { justify-content: center; } /* Center wrapped items */
+            .pillar { width: calc(33% - 10px); /* 3 pillars per row approx */ margin-bottom: 20px; } 
+            .pillar select { width: 100%; /* Full width within pillar */ } 
+
+            #shishenTable th, #shishenTable td { padding: 8px 10px; font-size: 0.9em; } /* Slightly smaller padding/font */
+            #basicInfo p { font-size: 1em; }
+
+        }
+
+        @media screen and (max-width: 480px) {
+            h1 { font-size: 1.5em; }
+            h2 { font-size: 1.3em; }
+             /* Stack quick input elements */
+            textarea#pillarInputText { width: 100%; margin-bottom: 10px; }
+            button.parse-button { width: 100%; margin-left: 0; }
+            .quick-input-note { margin-left: 0; }
+            
+            .pillar { width: calc(50% - 10px); /* 2 pillars per row */ } 
+            button.calculate-button { width: 100%; font-size: 1em;}
+            #shishenTable th, #shishenTable td { padding: 6px 8px; font-size: 0.85em; }
+            #legend { font-size: 0.9em; }
+            #logArea { font-size: 0.9em; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>八字推算</h2>
+        <form id="inputForm">
+            <div class="input-section">
+                <label for="pillarInputText">输入四柱+大运+流年（空格隔开）:</label>
+                <textarea id="pillarInputText" rows="1" placeholder="按 年 月 日 时 大运 流年 顺序输入干支，用空格分隔，例如：甲戌 乙亥 壬寅 壬寅 壬申 乙巳"></textarea>
+                <button type="button" class="parse-button" onclick="parseAndFillPillars()">解析填充</button>
+            </div>
+            
+            <div class="input-section">
+                <div class="input-pillars">
+                    <div class="pillar"> <label>年柱</label> <select id="y_stem" required> </select> <select id="y_branch" required> </select> </div>
+                    <div class="pillar"> <label>月柱</label> <select id="m_stem" required> </select> <select id="m_branch" required> </select> </div>
+                    <div class="pillar"> <label>日柱</label> <select id="d_stem" required> </select> <select id="d_branch" required> </select> </div>
+                    <div class="pillar"> <label>时柱</label> <select id="h_stem" required> </select> <select id="h_branch" required> </select> </div>
+                    <div class="pillar"> <label>大运</label> <select id="dy_stem" required> </select> <select id="dy_branch" required> </select> </div>
+                    <div class="pillar"> <label>流年</label> <select id="ln_stem" required> </select> <select id="ln_branch" required> </select> </div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="regional_profile">出生地五行 (选填):</label>
+                <select id="regional_profile">
+                    <option value="">--请选择--</option>
+                    <option value="WM_Strong">水木旺 / 火土金弱</option>
+                    <option value="FTJ_Strong">火土金旺 / 水木弱</option>
+                </select>
+            </div>
+
+            <button type="button" class="calculate-button" onclick="calculateBazi()">开始推算</button>
+        </form>
+
+        <div id="outputArea">
+            <h2>推算结果</h2>
+            <div id="basicInfo"></div>
+            <div class="table-responsive">
+                <table id="shishenTable">
+                    <thead>
+                        <tr>
+                            <th>十神</th>
+                            <th>十神旺弱</th>
+                            <th>喜忌</th>
+                            <th>地域吉凶</th>
+                            <th>年干吉凶</th>
+                            <th>大运吉凶</th>
+                            <th>流年吉凶</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+            <div id="legend">
+                <p><strong>图例说明:</strong></p>
+                <p><span class="xi-ji yong">用神</span> (红色) &nbsp;&nbsp; <span class="xi-ji ji">忌神</span> (黑色)</p>
+                <p>先天吉凶: <span class="ji-text">吉</span> (红色) / <span class="xiong-text">-</span> (无吉则为凶或平)</p>
+                <p>大运吉凶: <span class="ji-text">吉</span> / <span class="ji-text degree-text ji-plus">吉+</span> / <span class="ji-text degree-text ji-minus">吉-</span> / <span class="xiong-text">凶</span> / <span class="xiong-text degree-text xiong-plus">凶+</span> / <span class="xiong-text degree-text xiong-minus">凶-</span> (红吉黑凶)</p>
+                <p>流年吉凶: <span class="ji-text">吉</span> / <span class="xiong-text">凶</span> (红吉黑凶, 无程度)</p>
+                <p>背景色: <span style="background-color:#e6f4ea; padding: 0 3px;">比劫</span> <span style="background-color:#fff0f0; padding: 0 3px;">食伤</span> <span style="background-color:#fff9e6; padding: 0 3px;">财才</span> <span style="background-color:#ffffff; border: 1px solid #eee; padding: 0 3px;">官杀</span> <span style="background-color:#f1f3f5; padding: 0 3px;">印枭</span></p>
+            </div>
+            <h2>关键过程日志</h2>
+            <textarea id="logArea" readonly></textarea>
+        </div>
+
+        <script>
+            // --- Data Structures and Constants (Same as V2.2) ---
+            const stems = { '甲':{n:'甲',e:'木',y:'Yang'},'乙':{n:'乙',e:'木',y:'Yin'},'丙':{n:'丙',e:'火',y:'Yang'},'丁':{n:'丁',e:'火',y:'Yin'},'戊':{n:'戊',e:'土',y:'Yang'},'己':{n:'己',e:'土',y:'Yin'},'庚':{n:'庚',e:'金',y:'Yang'},'辛':{n:'辛',e:'金',y:'Yin'},'壬':{n:'壬',e:'水',y:'Yang'},'癸':{n:'癸',e:'水',y:'Yin'} };
+            const branches = { '子':{n:'子',e:'水',y:'Yang'},'丑':{n:'丑',e:'土',y:'Yin'},'寅':{n:'寅',e:'木',y:'Yang'},'卯':{n:'卯',e:'木',y:'Yin'},'辰':{n:'辰',e:'土',y:'Yang'},'巳':{n:'巳',e:'火',y:'Yin'},'午':{n:'午',e:'火',y:'Yang'},'未':{n:'未',e:'土',y:'Yin'},'申':{n:'申',e:'金',y:'Yang'},'酉':{n:'酉',e:'金',y:'Yin'},'戌':{n:'戌',e:'土',y:'Yang'},'亥':{n:'亥',e:'水',y:'Yin'} };
+            const stemNames = Object.keys(stems);
+            const branchNames = Object.keys(branches);
+            const shishenNames = ['比肩', '劫财', '食神', '伤官', '偏财', '正财', '偏官', '正官', '偏印', '正印'];
+            const shishenTypeMap = {'比肩':'bijie','劫财':'bijie','食神':'shishang','伤官':'shishang','偏财':'caixing','正财':'caixing','偏官':'guansha','正官':'guansha','偏印':'yinxiao','正印':'yinxiao'};
+            const shengKe = { '木':{g:['火'],r:['土'],gb:['水'],rb:['金'],s:['木']},'火':{g:['土'],r:['金'],gb:['木'],rb:['水'],s:['火']},'土':{g:['金'],r:['水'],gb:['火'],rb:['木'],s:['土']},'金':{g:['水'],r:['木'],gb:['土'],rb:['火'],s:['金']},'水':{g:['木'],r:['火'],gb:['金'],rb:['土'],s:['水']} };
+            const qiTable = { '寅':['甲','乙','丙','戊','癸'],'卯':['甲','乙','丙','戊','癸'],'巳':['丙','丁','戊','己','庚','乙'],'午':['丙','丁','戊','己','庚','乙'],'申':['庚','辛','壬','丁','己'],'酉':['庚','辛','壬','丁','己'],'亥':['壬','癸','甲','辛'],'子':['壬','癸','甲','辛'],'丑':['甲','癸'],'辰':['丙','戊','乙'],'未':['庚','丁','己'],'戌':['壬','辛'] };
+            const liTable = { '寅':['甲','乙','丙','丁'],'卯':['甲','乙','丙','丁'],'巳':['丙','丁','戊','己'],'午':['丙','丁','戊','己'],'申':['庚','辛','壬','癸'],'酉':['庚','辛','壬','癸'],'亥':['壬','癸','甲','乙'],'子':['壬','癸','甲','乙'],'丑':['庚','辛','壬','癸'],'辰':['壬','癸','甲','乙'],'未':['丙','丁','戊','己','甲','乙'],'戌':['丙','丁','戊','己','庚','辛'] };
+            const wuYunStemMapping = { '甲':{e:'土',s:1},'己':{e:'土',s:0},'乙':{e:'金',s:0},'庚':{e:'金',s:1},'丙':{e:'水',s:1},'辛':{e:'水',s:0},'丁':{e:'木',s:0},'壬':{e:'木',s:1},'戊':{e:'火',s:1},'癸':{e:'火',s:0} };
+            const wuYunBranchMapping = { '子':'火','午':'火','寅':'火','申':'火','卯':'金','酉':'金','巳':'木','亥':'木','辰':'水','戌':'水','丑':'土','未':'土' };
+            const oppositeElements = { '木':'金','金':'木','火':'水','水':'火','土':'水' };
+            let log = "";
+
+            // --- Helper Functions (Same as V2.2) ---
+            function addToLog(message) { log += message + "\n"; }
+            function getStemInfo(stemName) { return stemName ? stems[stemName] : null; }
+            function getBranchInfo(branchName) { return branchName ? branches[branchName] : null; }
+            function getShengKeRelation(actorElement, targetElement) { if (!actorElement || !targetElement || !shengKe[actorElement] || !shengKe[targetElement]) return '未知'; if (shengKe[actorElement].g.includes(targetElement)) return '生'; if (shengKe[actorElement].r.includes(targetElement)) return '克'; if (shengKe[targetElement]?.g.includes(actorElement)) return '泄'; if (shengKe[targetElement]?.r.includes(actorElement)) return '耗'; if (shengKe[actorElement].s.includes(targetElement)) return '帮'; return '未知'; }
+            function getRelativeRelation(actorElement, targetElement) { if (!actorElement || !targetElement || !shengKe[actorElement] || !shengKe[targetElement]) return '未知'; if (shengKe[targetElement].g.includes(actorElement)) return '生'; if (shengKe[targetElement].s.includes(actorElement)) return '帮'; if (shengKe[targetElement].r.includes(actorElement)) return '克'; if (shengKe[targetElement].gb.includes(actorElement)) return '泄'; if (shengKe[targetElement].rb.includes(actorElement)) return '耗'; return '未知'; }
+           
+            // --- Core Logic Functions (Same calculation logic as V2.2) ---
+            function mapShishen(dayMasterStem) { /* ... same ... */ const dmInfo=getStemInfo(dayMasterStem); if(!dmInfo) {addToLog("[错误] 无法获取日干信息!"); return null;} const dmElement=dmInfo.e; const dmYinYang=dmInfo.y; const mapping={}; addToLog(`[十神映射] 日干: ${dayMasterStem} (${dmYinYang}${dmElement})`); try { for(const stemName in stems){ const stemInfo=stems[stemName]; const relation=getRelativeRelation(dmElement, stemInfo.e); const sameYinYang=(dmYinYang===stemInfo.y); if(relation==='帮')mapping[sameYinYang?'比肩':'劫财']=stemName; else if(relation==='泄')mapping[sameYinYang?'食神':'伤官']=stemName; else if(relation==='耗')mapping[sameYinYang?'偏财':'正财']=stemName; else if(relation==='克')mapping[sameYinYang?'偏官':'正官']=stemName; else if(relation==='生')mapping[sameYinYang?'偏印':'正印']=stemName; } if(shishenNames.length!==Object.keys(mapping).length){ addToLog(`[警告] 十神映射不完整! Mapped: ${Object.keys(mapping).length}`); } addToLog(`  映射结果: ${JSON.stringify(mapping)}`); return mapping; } catch(e){ addToLog(`[错误] 十神映射失败: ${e.message}`); return null; } }
+            function getNatalWangRuo(bazi, shishenMap) { /* ... same ... */ const results={}; if(!shishenMap)return results; const {y_branch,m_branch,d_branch,h_branch}=bazi; addToLog(`[先天旺弱计算] 年支:${y_branch}, 月支:${m_branch}, 日支:${d_branch}, 时支:${h_branch}`); try { shishenNames.forEach(shishenName=>{ const stemName=shishenMap[shishenName]; let status='弱',detail='',hasQi=false,hasLi=false; if(stemName){ hasQi=(qiTable[y_branch]?.includes(stemName)||qiTable[d_branch]?.includes(stemName)); hasLi=(liTable[m_branch]?.includes(stemName)||liTable[h_branch]?.includes(stemName)); if(hasLi&&hasQi){detail='有力有气';status='旺';} else if(hasLi){detail='有力';status='旺';} else if(hasQi){detail='有气';status='旺';} else{detail='';status='弱';}} else{ addToLog(`  [警告] ${shishenName} 未找到对应天干，无法判断旺弱`); } results[shishenName]={status:status,detail:detail}; if(stemName){ addToLog(`  ${shishenName}(${stemName}): 有气=${hasQi}, 有力=${hasLi} -> ${status} (${detail||'无力无气'})`); } }); return results; } catch(e){ addToLog(`[错误] 计算先天旺弱失败: ${e.message}`); return results; } }
+            function getDayMasterCategory(dayMasterStem, monthBranch, shishenMap, shishenNatalWangRuoObj) { /* ... same ... */ addToLog(`[格局判断] 日干: ${dayMasterStem}, 月支: ${monthBranch}`); if(!shishenMap||!shishenNatalWangRuoObj){addToLog("  错误: 缺少十神映射或旺弱信息"); return {full:'未知',name:'未知'};} try{ const dmHasLiFromMonth=liTable[monthBranch]?.includes(dayMasterStem); const initialWangRuo=dmHasLiFromMonth?'旺':'弱'; addToLog(`  日干在月支${monthBranch}上 ${dmHasLiFromMonth?'有力':'无力'} -> 初步 ${initialWangRuo}`); let category='未知',categoryNameOnly='未知'; if(initialWangRuo==='旺'){ const opposingShishen=['正官','偏官','食神','伤官','正财','偏财']; let atLeastOneOpposingWang=opposingShishen.some(ssName=> shishenMap[ssName]&&shishenNatalWangRuoObj[ssName]?.status==='旺'); if(atLeastOneOpposingWang){category='A - 旺格'; categoryNameOnly='旺格';} else{category='B - 从旺格'; categoryNameOnly='从旺格';} addToLog(`  克泄耗十神中${atLeastOneOpposingWang?'至少一个旺':'均弱'} -> 定为 ${categoryNameOnly}`); } else{ const supportingShishen=['正印','偏印','比肩','劫财']; let atLeastOneSupportingWang=supportingShishen.some(ssName=> shishenMap[ssName]&&shishenNatalWangRuoObj[ssName]?.status==='旺'); if(atLeastOneSupportingWang){category='C - 弱格'; categoryNameOnly='弱格';} else{category='D - 从弱格'; categoryNameOnly='从弱格';} addToLog(`  生扶十神中${atLeastOneSupportingWang?'至少一个旺':'均弱'} -> 定为 ${categoryNameOnly}`); } addToLog(`  最终格局: ${categoryNameOnly}`); return {full:category,name:categoryNameOnly}; } catch(e){ addToLog(`[错误] 判断格局失败: ${e.message}`); return {full:'错误',name:'错误'}; } }
+            function getXiJi(dayMasterCategoryFull, shishenMap, shishenNatalWangRuoObj, dayMasterStem) { /* ... same ... */ const xiJi={}; if(!shishenMap||!shishenNatalWangRuoObj||dayMasterCategoryFull==='未知'||dayMasterCategoryFull==='错误'){ addToLog("[错误] 无法确定喜忌: 前置数据不足"); shishenNames.forEach(name=>xiJi[name]='-'); return xiJi; } const dmInfo=getStemInfo(dayMasterStem); if(!dmInfo){addToLog("[错误] 无法获取日干信息，无法确定喜忌"); shishenNames.forEach(name=>xiJi[name]='-'); return xiJi;} const dmElement=dmInfo.e; addToLog(`[喜忌确定] 格局: ${dayMasterCategoryFull}`); const behavesStrong=(dayMasterCategoryFull==='A - 旺格'||dayMasterCategoryFull==='D - 从弱格'); try { shishenNames.forEach(shishenName=>{ const stemName=shishenMap[shishenName]; if(!stemName){xiJi[shishenName]='-'; return;} const stemInfo=getStemInfo(stemName); if(!stemInfo){xiJi[shishenName]='-'; return;} const relationToDM=getRelativeRelation(dmElement, stemInfo.e); const isSupporting=(relationToDM==='生'||relationToDM==='帮'); const isOpposing=(relationToDM==='克'||relationToDM==='泄'||relationToDM==='耗'); const shishenWangRuo=shishenNatalWangRuoObj[shishenName]?.status; if(!shishenWangRuo){xiJi[shishenName]='-'; return;} let isYongShen=false; if(behavesStrong){ if(isOpposing){isYongShen=(shishenWangRuo==='旺');} else if(isSupporting){isYongShen=(shishenWangRuo==='弱');} } else{ if(isOpposing){isYongShen=(shishenWangRuo==='弱');} else if(isSupporting){isYongShen=(shishenWangRuo==='旺');} } xiJi[shishenName]=isYongShen?'用神':'忌神'; addToLog(`  ${shishenName}(${stemName}, ${shishenWangRuo}, ${relationToDM}日干): ${behavesStrong?'旺局类':'弱局类'} -> ${xiJi[shishenName]}`); }); return xiJi; } catch(e){ addToLog(`[错误] 确定喜忌失败: ${e.message}`); shishenNames.forEach(name=>xiJi[name]='-'); return xiJi; } }
+            function getWuYunLiuQiStem(stemName) { /* ... same ... */ const mapping=wuYunStemMapping[stemName]; return mapping?{element:mapping.e,strong:mapping.s===1}:null; }
+            function getInnateJiXiongRegion(regionalProfile, shishenMap, shishenXiJi) { /* ... same, returns '吉' or '凶' or '-' */ const results={}; if(!regionalProfile){addToLog(`[先天吉凶-地域] 未选择地域信息，跳过计算。`); shishenNames.forEach(name=>results[name]='-'); return results;} if(!shishenMap||!shishenXiJi){addToLog(`[先天吉凶-地域] 错误: 缺少十神映射或喜忌信息`); shishenNames.forEach(name=>results[name]='-'); return results;} try{ let waterWoodStrong, fireEarthMetalStrong; if(regionalProfile==='WM_Strong'){waterWoodStrong=true; fireEarthMetalStrong=false; addToLog(`[先天吉凶-地域] 判断依据: 水木旺, 火土金弱`);} else if(regionalProfile==='FTJ_Strong'){waterWoodStrong=false; fireEarthMetalStrong=true; addToLog(`[先天吉凶-地域] 判断依据: 火土金旺, 水木弱`);} else{addToLog(`[先天吉凶-地域] 错误: 未知的地域旺弱配置: ${regionalProfile}`); shishenNames.forEach(name=>results[name]='-'); return results;} shishenNames.forEach(shishenName=>{ const stemName=shishenMap[shishenName]; const xiJiStatus=shishenXiJi[shishenName]; if(!stemName||xiJiStatus==='-'){results[shishenName]='-'; return;} const stemInfo=getStemInfo(stemName); if(!stemInfo){results[shishenName]='-'; return;} const stemElement=stemInfo.e; const isYongShen=(xiJiStatus==='用神'); let elementIsWang; if(stemElement==='水'||stemElement==='木')elementIsWang=waterWoodStrong; else elementIsWang=fireEarthMetalStrong; let jiXiong=isYongShen?(elementIsWang?'吉':'凶'):(elementIsWang?'凶':'吉'); results[shishenName]=jiXiong; addToLog(`  ${shishenName}(${stemName}, ${stemElement}, ${isYongShen?'用':'忌'}): 地域五行${stemElement} ${elementIsWang?'旺':'弱'} -> ${jiXiong}`); }); return results;} catch(e){ addToLog(`[错误] 计算地域吉凶失败: ${e.message}`); shishenNames.forEach(name=>results[name]='-'); return results;} }
+            function getInnateJiXiongYearStem(yearStemName, shishenMap, shishenXiJi) { /* ... same, returns '吉' or '凶' or '-' */ const results={}; if(!shishenMap||!shishenXiJi){addToLog(`[先天吉凶-年干] 错误: 缺少十神映射或喜忌信息`); shishenNames.forEach(name=>results[name]='-'); return results;} const yearStemWuYun=getWuYunLiuQiStem(yearStemName); if(!yearStemWuYun){addToLog(`[先天吉凶-年干] 错误: 无法获取年干 ${yearStemName} 五运信息`); shishenNames.forEach(name=>results[name]='-'); return results;} const yearElement=yearStemWuYun.element; const yearStrong=yearStemWuYun.strong; addToLog(`[先天吉凶-年干] 判断依据: 年干 ${yearStemName} -> ${yearElement}${yearStrong?'有力':'无力'}`); try{ shishenNames.forEach(shishenName=>{ const targetStemName=shishenMap[shishenName]; const xiJiStatus=shishenXiJi[shishenName]; if(!targetStemName||xiJiStatus==='-'){results[shishenName]='-'; return;} const targetInfo=getStemInfo(targetStemName); if(!targetInfo){results[shishenName]='-'; return;} const targetElement=targetInfo.e; const isYongShen=(xiJiStatus==='用神'); const relation=getShengKeRelation(yearElement, targetElement); let jiXiong; if(isYongShen){ if(relation==='生'||relation==='帮')jiXiong=yearStrong?'吉':'凶'; else jiXiong=yearStrong?'凶':'吉'; } else{ if(relation==='生'||relation==='帮')jiXiong=yearStrong?'凶':'吉'; else jiXiong=yearStrong?'吉':'凶'; } results[shishenName]=jiXiong; addToLog(`  年干(${yearElement}${yearStrong?'有力':'无力'}) ${relation} ${shishenName}(${targetStemName}, ${isYongShen?'用':'忌'}) -> ${jiXiong}`); }); return results;} catch(e){ addToLog(`[错误] 计算年干吉凶失败: ${e.message}`); shishenNames.forEach(name=>results[name]='-'); return results;} }
+            function getDaYunJiXiong(daYunStemName, daYunBranchName, shishenMap, shishenXiJi) { /* Returns '吉', '吉+', '吉-', '凶', '凶+', '凶-' or '-' */ const results={}; if(!shishenMap||!shishenXiJi){ addToLog(`[大运吉凶] 错误: 缺少前置数据`); shishenNames.forEach(name => results[name] = '-'); return results;} addToLog(`[大运吉凶] 大运: ${daYunStemName}${daYunBranchName}`); const baselineJiXiong={}; addToLog(`  步骤1: 运支(${daYunBranchName})定基调`); try{ shishenNames.forEach(shishenName=>{ const stemName=shishenMap[shishenName]; const xiJiStatus=shishenXiJi[shishenName]; if(!stemName||xiJiStatus==='-'){baselineJiXiong[shishenName]='-'; return;} const isYongShen=(xiJiStatus==='用神'); const hasLiFromYunZhi=liTable[daYunBranchName]?.includes(stemName); baselineJiXiong[shishenName]=isYongShen?(hasLiFromYunZhi?'吉':'凶'):(hasLiFromYunZhi?'凶':'吉'); addToLog(`    ${shishenName}(${stemName}, ${isYongShen?'用':'忌'}): 在${daYunBranchName}上 ${hasLiFromYunZhi?'有力':'无力'} -> 基调(A) ${baselineJiXiong[shishenName]}`); }); addToLog(`  步骤2: 判断程度`); const daYunStemInfo=getStemInfo(daYunStemName); if(!daYunStemInfo) throw new Error("无效的大运天干"); const daYunElement=daYunStemInfo.e; const yunZhiIsYinShenSiHai=['寅','申','巳','亥'].includes(daYunBranchName); const yunZhiIsChenXuChouWei=['辰','戌','丑','未'].includes(daYunBranchName); shishenNames.forEach(shishenName=>{ const stemName=shishenMap[shishenName]; const xiJiStatus=shishenXiJi[shishenName]; if(!stemName||xiJiStatus==='-'){results[shishenName]='-'; return;} const stemInfo=getStemInfo(stemName); if(!stemInfo){results[shishenName]='-'; return;} const isYongShen=(xiJiStatus==='用神'); const baselineA=baselineJiXiong[shishenName]; if(baselineA==='-'){results[shishenName]='-'; return;} let amplified=false; if(yunZhiIsYinShenSiHai&&stemInfo.y==='Yang')amplified=true; if(yunZhiIsChenXuChouWei&&stemInfo.y==='Yin')amplified=true; const relation=getShengKeRelation(daYunElement, stemInfo.e); let effectB=isYongShen?((relation==='生'||relation==='帮')?'吉':'凶'):((relation==='生'||relation==='帮')?'凶':'吉'); addToLog(`    ${shishenName}(${stemName}): 基调(A)=${baselineA}, 运支放大=${amplified}, 运干(${daYunElement})${relation}十神(${isYongShen?'用':'忌'})->效果(B)=${effectB}`); let finalText='-'; if(baselineA==='吉'&&effectB==='吉')finalText='吉+'; else if(baselineA==='凶'&&effectB==='凶')finalText='凶+'; else if(baselineA==='吉'&&effectB==='凶')finalText='吉-'; else if(baselineA==='凶'&&effectB==='吉')finalText='凶-'; else finalText=baselineA; results[shishenName]=finalText; addToLog(`      -> 大运最终: ${finalText}`); }); return results;} catch(e){ addToLog(`[错误] 计算大运吉凶失败: ${e.message}`); shishenNames.forEach(name=>results[name]='-'); return results;} }
+            function determineLiuNianElement(liuNianStemName, liuNianBranchName) { /* ... same ... */ addToLog(`[流年五行确定] 流年: ${liuNianStemName}${liuNianBranchName}`); const lnStemWuYun=getWuYunLiuQiStem(liuNianStemName); if(!lnStemWuYun){addToLog(`  错误: 无法获取流年天干 ${liuNianStemName} 的五运信息`); return null;} const lnStemElement=lnStemWuYun.element; const lnStemStrong=lnStemWuYun.strong; addToLog(`  流年干 ${liuNianStemName} -> ${lnStemElement}${lnStemStrong?'有力':'无力'}`); if(lnStemStrong){addToLog(`  年干有力，流年五行 = ${lnStemElement}`); return lnStemElement;} else{ const lnBranchElement=wuYunBranchMapping[liuNianBranchName]; if(!lnBranchElement){addToLog(`  错误: 无法获取流年地支 ${liuNianBranchName} 的五运信息`); return null;} addToLog(`  流年支 ${liuNianBranchName} -> ${lnBranchElement}`); const relation=getShengKeRelation(lnBranchElement, lnStemElement); addToLog(`  比较: 支(${lnBranchElement}) ${relation} 干(${lnStemElement})`); if(relation==='生'||relation==='帮'){addToLog(`  支生扶干，流年五行 = 年干五行 = ${lnStemElement}`); return lnStemElement;} else{const opposite=oppositeElements[lnStemElement]; addToLog(`  支克泄耗干，流年五行 = 年干五行反面(${lnStemElement}反面=${opposite}) = ${opposite}`); return opposite;}} }
+             // Rule 9: Calculate Liu Nian Ji Xiong (Returns "吉" or "凶" or '-')
+            function getLiuNianJiXiong(liuNianStemName, liuNianBranchName, daYunResults, shishenMap, shishenXiJi) {
+                const results = {};
+                if (!daYunResults || !shishenMap || !shishenXiJi) { /* ... error handling ... */ addToLog(`[流年吉凶] 错误: 缺少前置数据`); shishenNames.forEach(name => results[name] = '-'); return results; }
+                const liuNianElement = determineLiuNianElement(liuNianStemName, liuNianBranchName);
+                if (!liuNianElement) { addToLog(`[流年吉凶] 错误: 无法确定流年五行`); shishenNames.forEach(name => results[name] = '-'); return results; }
+                addToLog(`[流年吉凶] 最终流年五行: ${liuNianElement}`);
+                try{
+                    shishenNames.forEach(shishenName => {
+                        const stemName = shishenMap[shishenName]; const xiJiStatus = shishenXiJi[shishenName]; const daYunStateA_text = daYunResults[shishenName]; 
+                        if (!stemName || xiJiStatus === '-' || daYunStateA_text === '-') { results[shishenName] = '-'; return; }
+                        const stemInfo = getStemInfo(stemName); if (!stemInfo) { results[shishenName] = '-'; return; }
+                        const isYongShen = (xiJiStatus === '用神');
+
+                        const relation = getShengKeRelation(liuNianElement, stemInfo.e);
+                        let effectB = isYongShen ? ((relation === '生' || relation === '帮') ? '吉' : '凶') : ((relation === '生' || relation === '帮') ? '凶' : '吉');
+                        addToLog(`  流年五行(${liuNianElement}) ${relation} ${shishenName}(${stemName}, ${isYongShen?'用':'忌'}) -> 流年效果(B) ${effectB}`);
+
+                        // Final LiuNian outcome is just the effect B as per user feedback
+                        let finalText = effectB; 
+                        
+                        results[shishenName] = finalText; // Store '吉' or '凶'
+                        addToLog(`    结合大运状态(${daYunStateA_text}) -> 流年最终判定: ${finalText}`); 
+                    });
+                    return results;
+                } catch (e) {
+                    addToLog(`[错误] 计算流年吉凶失败: ${e.message}`);
+                    shishenNames.forEach(name => results[name] = '-'); return results;
+                }
+            }
+
+            // --- New Function: Parse Text Input and Fill Dropdowns ---
+            function parseAndFillPillars() {
+                const text = document.getElementById('pillarInputText').value.trim();
+                addToLog(`[解析填充] 尝试解析文本: "${text}"`);
+                const parts = text.split(/\s+/); 
+                if (parts.length !== 6) { alert("解析错误：请输入完整的六柱干支（年、月、日、时、大运、流年），并用空格分隔。"); addToLog("  错误: 输入部分不等于6柱。"); return; }
+                const expectedIds = ['y_stem','y_branch','m_stem','m_branch','d_stem','d_branch','h_stem','h_branch','dy_stem','dy_branch','ln_stem','ln_branch'];
+                let parsedValues = []; let valid = true;
+                for (let i = 0; i < 6; i++) {
+                    const part = parts[i]; if (part.length !== 2) { alert(`解析错误：第 ${i+1} 柱 "${part}" 格式错误，应为两个字符。`); addToLog(`  错误: 第 ${i+1} 柱 "${part}" 长度不为2。`); valid = false; break; }
+                    const stem = part[0]; const branch = part[1];
+                    if (!stems[stem]) { alert(`解析错误：第 ${i+1} 柱的天干 "${stem}" 无效。`); addToLog(`  错误: 第 ${i+1} 柱天干 "${stem}" 无效。`); valid = false; break; }
+                    if (!branches[branch]) { alert(`解析错误：第 ${i+1} 柱的地支 "${branch}" 无效。`); addToLog(`  错误: 第 ${i+1} 柱地支 "${branch}" 无效。`); valid = false; break; }
+                    parsedValues.push(stem, branch);
+                }
+                if (valid) {
+                    addToLog("  解析成功，填充下拉框...");
+                    for(let i = 0; i < 12; i++) {
+                        const selectElement = document.getElementById(expectedIds[i]);
+                        if (selectElement) { selectElement.value = parsedValues[i]; } 
+                        else { addToLog(`  [警告] 未找到ID为 ${expectedIds[i]} 的下拉框元素。`); }
+                    }
+                    // Removed success alert
+                    addToLog("  下拉框填充完毕。");
+                }
+            }
+
+            // --- Main Calculation Function ---
+            function calculateBazi() {
+                log = ""; 
+                addToLog("--- 开始推算 ---");
+                console.log("calculateBazi called"); 
+
+                try { 
+                    // 1. Get Inputs & Validate
+                    const bazi = { y_stem:document.getElementById('y_stem').value, y_branch:document.getElementById('y_branch').value, m_stem:document.getElementById('m_stem').value, m_branch:document.getElementById('m_branch').value, d_stem:document.getElementById('d_stem').value, d_branch:document.getElementById('d_branch').value, h_stem:document.getElementById('h_stem').value, h_branch:document.getElementById('h_branch').value };
+                    const daYun = { stem: document.getElementById('dy_stem').value, branch: document.getElementById('dy_branch').value };
+                    const liuNian = { stem: document.getElementById('ln_stem').value, branch: document.getElementById('ln_branch').value };
+                    const regionalProfile = document.getElementById('regional_profile').value;
+                    if (!bazi.y_stem || !bazi.y_branch || !bazi.m_stem || !bazi.m_branch || !bazi.d_stem || !bazi.d_branch || !bazi.h_stem || !bazi.h_branch || !daYun.stem || !daYun.branch || !liuNian.stem || !liuNian.branch) { alert("错误：请确保所有八字、大运、流年干支都已选择！"); return; } 
+                    addToLog(`[输入确认] 八字: ${bazi.y_stem}${bazi.y_branch} ... 大运: ${daYun.stem}${daYun.branch} 流年: ${liuNian.stem}${liuNian.branch} 地域: ${regionalProfile || '未选择'}`);
+                    
+                    // 2. Perform Calculations
+                    const dayMasterStem = bazi.d_stem;
+                    addToLog(`日主确定: ${dayMasterStem}`);
+                    const shishenMap = mapShishen(dayMasterStem); if (!shishenMap) throw new Error("十神映射失败");
+                    const shishenNatalWangRuoObj = getNatalWangRuo(bazi, shishenMap); if (Object.keys(shishenNatalWangRuoObj).length === 0 && shishenNames.length > 0) throw new Error("先天旺弱计算失败"); // Check if object is empty only if expected non-empty
+                    const dayMasterCategoryResult = getDayMasterCategory(dayMasterStem, bazi.m_branch, shishenMap, shishenNatalWangRuoObj); if (dayMasterCategoryResult.name === '未知' || dayMasterCategoryResult.name === '错误') throw new Error("无法确定格局");
+                    const dayMasterCategoryName = dayMasterCategoryResult.name; const dayMasterCategoryFull = dayMasterCategoryResult.full; 
+                    const shishenXiJi = getXiJi(dayMasterCategoryFull, shishenMap, shishenNatalWangRuoObj, dayMasterStem); if (Object.values(shishenXiJi).some(v => v === '-')) throw new Error("喜忌计算不完整");
+                    const innateJiXiongRegion = getInnateJiXiongRegion(regionalProfile, shishenMap, shishenXiJi);
+                    const innateJiXiongYearStem = getInnateJiXiongYearStem(bazi.y_stem, shishenMap, shishenXiJi);
+                    const daYunResults = getDaYunJiXiong(daYun.stem, daYun.branch, shishenMap, shishenXiJi);
+                    const liuNianResults = getLiuNianJiXiong(liuNian.stem, liuNian.branch, daYunResults, shishenMap, shishenXiJi);
+
+                    // 3. Render Output
+                    const dmInfoRender = getStemInfo(dayMasterStem);
+                    document.getElementById('basicInfo').innerHTML = `
+                        <p><strong>八字:</strong> ${bazi.y_stem}${bazi.y_branch} ${bazi.m_stem}${bazi.m_branch} ${bazi.d_stem}${bazi.d_branch} ${bazi.h_stem}${bazi.h_branch}</p>
+                        <p><strong>日主:</strong> ${dayMasterStem} (${dmInfoRender ? dmInfoRender.e : '未知'})</p>
+                        <p><strong>日主格局:</strong> ${dayMasterCategoryName}</p> 
+                        <p><strong>当前大运:</strong> ${daYun.stem}${daYun.branch}</p>
+                        <p><strong>当前流年:</strong> ${liuNian.stem}${liuNian.branch}</p>
+                    `;
+
+                    const tableBody = document.getElementById('shishenTable').getElementsByTagName('tbody')[0];
+                    tableBody.innerHTML = ''; 
+
+                    shishenNames.forEach(shishenName => {
+                        const stemName = shishenMap[shishenName] || '-';
+                        if (stemName === '-') return; 
+
+                        const wangRuoDetail = shishenNatalWangRuoObj[shishenName]?.detail || '';
+                        const xiJiText = shishenXiJi[shishenName] || '-';
+                        const innateRegionJiXiong = innateJiXiongRegion[shishenName] || '-';
+                        const innateYearStemJiXiong = innateJiXiongYearStem[shishenName] || '-';
+                        const daYunText = daYunResults[shishenName] || '-'; 
+                        const liuNianText = liuNianResults[shishenName] || '-';
+
+                        const row = tableBody.insertRow();
+                        const shishenTypeName = shishenTypeMap[shishenName] || '';
+                        row.className = `shishen-type-${shishenTypeName}`; 
+
+                        // Col 1: Shishen(Stem)
+                        row.insertCell().innerHTML = `<strong class="shishen-name">${shishenName}</strong><span class="shishen-stem">(${stemName})</span>`;
+                        // Col 2: WangRuo Detail
+                        row.insertCell().textContent = wangRuoDetail;
+                        // Col 3: XiJi
+                        row.insertCell().innerHTML = `<span class="xi-ji ${xiJiText === '用神' ? 'yong' : 'ji'}">${xiJiText}</span>`;
+                        // Col 4: Innate Region JiXiong (Show 吉 only)
+                        row.insertCell().innerHTML = (innateRegionJiXiong === '吉' ? `<span class="ji-text">吉</span>` : '-');
+                        // Col 5: Innate YearStem JiXiong (Show 吉 only)
+                        row.insertCell().innerHTML = (innateYearStemJiXiong === '吉' ? `<span class="ji-text">吉</span>` : '-');
+                        // Col 6: DaYun JiXiong (Show text)
+                        let daYunClass = daYunText.includes('吉') ? 'ji-text' : (daYunText.includes('凶') ? 'xiong-text' : '');
+                        if (daYunText.includes('+')) daYunClass += ` degree-text ${daYunText.includes('吉') ? 'ji-plus' : 'xiong-plus'}`;
+                        if (daYunText.includes('-')) daYunClass += ` degree-text ${daYunText.includes('吉') ? 'ji-minus' : 'xiong-minus'}`;
+                        row.insertCell().innerHTML = `<span class="${daYunClass}">${daYunText}</span>`;
+                        // Col 7: LiuNian JiXiong (Show 吉 or 凶 text only)
+                        let liuNianClass = liuNianText === '吉' ? 'ji-text' : (liuNianText === '凶' ? 'xiong-text' : '');
+                        row.insertCell().innerHTML = `<span class="${liuNianClass}">${liuNianText}</span>`;
+                    });
+
+                    document.getElementById('logArea').value = log + "--- 推算完毕 ---";
+                    document.getElementById('outputArea').style.display = 'block';
+
+                } catch (error) {
+                    console.error("计算过程中发生错误:", error);
+                    addToLog(`[严重错误] 计算中断: ${error.message}${error.stack ? '\n' + error.stack : ''}`); 
+                    document.getElementById('logArea').value = log + `--- 计算因错误中断 ---`;
+                    alert(`计算过程中发生错误: ${error.message}\n请检查输入或规则逻辑。\n详细错误信息已记录在日志区及浏览器控制台(F12)。`);
+                    document.getElementById('outputArea').style.display = 'none'; 
+                }
+            }
+
+            // --- Populate Dropdowns & Set Default Text Input ---
+            function populateSelect(selectId, options, addEmpty=true) { const select = document.getElementById(selectId); select.innerHTML = ''; if(addEmpty){ const defaultOption = document.createElement('option'); defaultOption.value = ""; defaultOption.textContent = "--"; select.appendChild(defaultOption); } options.forEach(option => { const opt = document.createElement('option'); opt.value = option; opt.textContent = option; select.appendChild(opt); }); }
+            window.onload = function() { populateSelect('y_stem', stemNames); populateSelect('y_branch', branchNames); populateSelect('m_stem', stemNames); populateSelect('m_branch', branchNames); populateSelect('d_stem', stemNames); populateSelect('d_branch', branchNames); populateSelect('h_stem', stemNames); populateSelect('h_branch', branchNames); populateSelect('dy_stem', stemNames); populateSelect('dy_branch', branchNames); populateSelect('ln_stem', stemNames); populateSelect('ln_branch', branchNames); const defaultPillars = "甲戌 乙亥 壬寅 壬寅 壬申 乙巳"; document.getElementById('pillarInputText').value = defaultPillars; const defaultValues = defaultPillars.split(/\s+/).reduce((acc, val) => [...acc, val[0], val[1]], []); const defaultIds = ['y_stem','y_branch','m_stem','m_branch','d_stem','d_branch','h_stem','h_branch','dy_stem','dy_branch','ln_stem','ln_branch']; defaultIds.forEach((id, index) => { if (document.getElementById(id)) document.getElementById(id).value = defaultValues[index]; }); document.getElementById('regional_profile').value = ''; };
+
+        // --- New Function: Parse Text Input and Fill Dropdowns (Removed success alert) ---
+        function parseAndFillPillars() {
+            const text = document.getElementById('pillarInputText').value.trim();
+            addToLog(`[解析填充] 尝试解析文本: "${text}"`);
+            const parts = text.split(/\s+/); 
+            if (parts.length !== 6) { alert("解析错误：请输入完整的六柱干支（年、月、日、时、大运、流年），并用空格分隔。"); addToLog("  错误: 输入部分不等于6柱。"); return; }
+            const expectedIds = ['y_stem','y_branch','m_stem','m_branch','d_stem','d_branch','h_stem','h_branch','dy_stem','dy_branch','ln_stem','ln_branch'];
+            let parsedValues = []; let valid = true;
+            for (let i = 0; i < 6; i++) {
+                const part = parts[i]; if (part.length !== 2) { alert(`解析错误：第 ${i+1} 柱 "${part}" 格式错误，应为两个字符。`); addToLog(`  错误: 第 ${i+1} 柱 "${part}" 长度不为2。`); valid = false; break; }
+                const stem = part[0]; const branch = part[1];
+                if (!stems[stem]) { alert(`解析错误：第 ${i+1} 柱的天干 "${stem}" 无效。`); addToLog(`  错误: 第 ${i+1} 柱天干 "${stem}" 无效。`); valid = false; break; }
+                if (!branches[branch]) { alert(`解析错误：第 ${i+1} 柱的地支 "${branch}" 无效。`); addToLog(`  错误: 第 ${i+1} 柱地支 "${branch}" 无效。`); valid = false; break; }
+                parsedValues.push(stem, branch);
+            }
+            if (valid) {
+                addToLog("  解析成功，填充下拉框...");
+                for(let i = 0; i < 12; i++) {
+                    const selectElement = document.getElementById(expectedIds[i]);
+                    if (selectElement) { selectElement.value = parsedValues[i]; } 
+                    else { addToLog(`  [警告] 未找到ID为 ${expectedIds[i]} 的下拉框元素。`); }
+                }
+                // Removed success alert
+                addToLog("  下拉框填充完毕。");
+            }
+        }
+    </script>
+
+</body>
+</html>
