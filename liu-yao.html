@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>问答</title>
+
+<style>
+    body { font-family: Arial, sans-serif; }
+    .container { width: 90%; margin: auto; padding: 2px; }
+    input[type="text"] { width: 100%; padding: 1px; margin-bottom: 1px; }
+    button { width: 100%; padding: 1px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    table, th, td { border: 1px solid black; border-collapse: collapse; padding: 5px; text-align: center; }
+
+.hexagram-group {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px; /* 减少组与组之间的间距 */
+    font-weight: bold;
+    line-height: 30px; /* 确保文字上下居中 */
+    font-size: 12px; /* 确保汉字清晰可见 */
+}
+
+.hexagram-button {
+    width: 50px; /* 增加按钮宽度以适应汉字 */
+    height: 30px; /* 保持按钮高度 */
+    background-color: #f0f0f0; /* 默认背景色为淡灰色 */
+    border: 1px solid #ccc;
+    cursor: pointer;
+    text-align: center;
+    line-height: 30px; /* 确保文字上下居中 */
+    font-size: 12px; /* 确保汉字清晰可见 */
+    color: black; /* 文字颜色为黑色 */
+    margin: 0 2px; /* 减少按钮之间的间距 */
+}
+/* 所有选中的按钮共有样式：白色加粗边框 */
+.hexagram-button.selected {
+    border: 2px solid white; /* 白色加粗边框 */
+}
+
+
+
+/* 阴爻按钮点击后显示灰色 */
+.hexagram-button.selected.yin {
+    background-color: gray;
+    color: white; /* 点击后文字颜色为白色，提高对比度 */
+    font-weight: bold;
+}
+
+/* 阳爻按钮点击后显示橙色 */
+.hexagram-button.selected.yang {
+    background-color: orange;
+    color: white; /* 点击后文字颜色为白色，提高对比度 */
+    font-weight: bold;
+}
+
+/* 老阴按钮点击后显示黑色 */
+.hexagram-button.selected.lao-yin {
+    background-color: black;
+    color: white; /* 点击后文字颜色为白色，提高对比度 */
+    font-weight: bold;
+}
+
+/* 老阳按钮点击后显示红色 */
+.hexagram-button.selected.lao-yang {
+    background-color: red;
+    color: white; /* 点击后文字颜色为白色，提高对比度 */
+    font-weight: bold;
+}
+
+
+#date-inputs {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    margin-right: 10px;
+}
+
+.input-group label {
+    margin-right: 5px;
+    font-weight: bold;
+}
+
+.gan-zhi-select {
+    width: 80px; /* 调整下拉框宽度 */
+    padding: 5px;
+    font-size: 14px;
+}
+</style>
+
+</head>
+<body>
+<div class="container">
+    <input type="hidden" id="hexagramCode" value="">
+    <div class="hexagram-group" data-index="5">⑥上爻</div>
+    <div class="hexagram-group" data-index="4">⑤五爻</div>
+    <div class="hexagram-group" data-index="3">④四爻</div>
+    <div class="hexagram-group" data-index="2">③三爻</div>
+    <div class="hexagram-group" data-index="1">②二爻</div>
+    <div class="hexagram-group" data-index="0">①初爻</div>
+</div>
+<div id="date-inputs">
+    <div class="input-group">
+        <label for="monthBranchSelect">月支:</label>
+        <select id="monthBranchSelect" class="gan-zhi-select"></select>
+    </div>
+    <div class="input-group">
+        <label for="dayStemSelect">日干:</label>
+        <select id="dayStemSelect" class="gan-zhi-select"></select>
+    </div>
+    <div class="input-group">
+        <label for="dayBranchSelect">日支:</label>
+        <select id="dayBranchSelect" class="gan-zhi-select"></select>
+    </div>
+    
+    <!-- 隐藏文本框用于存储最终选择 -->
+    <input type="hidden" id="monthBranch" value="子">
+    <input type="hidden" id="dayStem" value="甲">
+    <input type="hidden" id="dayBranch" value="子">
+</div>
+    <button onclick="submitForm()">提交</button>
+<div id="result_all"></div>
+    <div id="result"></div>
+    <div id="dongYaoResult"></div>
+    <div id="wuxingResult"></div>
+
+<script>
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    const hexagramInput = document.getElementById('hexagramCode');
+    const groups = document.querySelectorAll('.hexagram-group');
+
+    // 初始化按钮
+    groups.forEach((group, index) => {
+        const buttonLabels = [
+            { label: '阴爻', value: '0', class: 'yin' },
+            { label: '老阴×', value: 'x', class: 'lao-yin' },
+            { label: '阳爻', value: '1', class: 'yang' },
+            { label: '老阳○', value: 'y', class: 'lao-yang' }
+        ];
+
+        buttonLabels.forEach(buttonLabel => {
+            const button = document.createElement('button');
+            button.className = 'hexagram-button';
+            button.textContent = buttonLabel.label;
+            button.setAttribute('data-value', buttonLabel.value);
+            button.classList.add(buttonLabel.class); // 添加额外的类名
+            button.addEventListener('click', () => handleButtonClick(index, buttonLabel.value, buttonLabel.class));
+            group.appendChild(button);
+        });
+    });
+
+    // 处理按钮点击事件
+    function handleButtonClick(index, value, className) {
+        const group = groups[index];
+        const buttons = group.querySelectorAll('.hexagram-button');
+        buttons.forEach(button => button.classList.remove('selected', 'yin', 'yang', 'lao-yin', 'lao-yang'));
+
+        const clickedButton = group.querySelector(`[data-value="${value}"]`);
+        if (clickedButton) {
+            clickedButton.classList.add('selected', className);
+        }
+
+        updateHexagramCode();
+    }
+
+    // 更新隐藏文本框的值
+    function updateHexagramCode() {
+        let codeArray = Array(6); // 默认填充六个 '0'
+
+        groups.forEach(group => {
+            const selectedIndex = parseInt(group.getAttribute('data-index'));
+            const selectedButton = group.querySelector('.hexagram-button.selected');
+            if (selectedButton) {
+                codeArray[selectedIndex] = selectedButton.getAttribute('data-value');
+            }
+        });
+
+        hexagramInput.value = codeArray.join(''); // 将数组转换为字符串
+        console.log('当前八卦编码:', hexagramInput.value);
+    }
+});
+
+
+//更新月份地支、日期天干、日期地支
+document.addEventListener('DOMContentLoaded', function() {
+    const stems = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+    const branches = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+
+    // 初始化下拉框选项
+    function initializeSelectOptions(selectId, options) {
+        const selectElement = document.getElementById(selectId);
+        options.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option;
+            optionElement.textContent = option;
+            selectElement.appendChild(optionElement);
+        });
+    }
+
+    initializeSelectOptions('monthBranchSelect', branches);
+    initializeSelectOptions('dayStemSelect', stems);
+    initializeSelectOptions('dayBranchSelect', branches);
+
+    // 更新隐藏文本框的值
+    function updateHiddenInputs() {
+        document.getElementById('monthBranch').value = document.getElementById('monthBranchSelect').value;
+        document.getElementById('dayStem').value = document.getElementById('dayStemSelect').value;
+        document.getElementById('dayBranch').value = document.getElementById('dayBranchSelect').value;
+
+        console.log('月份地支:', document.getElementById('monthBranch').value);
+        console.log('日期天干:', document.getElementById('dayStem').value);
+        console.log('日期地支:', document.getElementById('dayBranch').value);
+    }
+
+    // 添加事件监听器，当选择改变时更新隐藏文本框
+    document.getElementById('monthBranchSelect').addEventListener('change', updateHiddenInputs);
+    document.getElementById('dayStemSelect').addEventListener('change', updateHiddenInputs);
+    document.getElementById('dayBranchSelect').addEventListener('change', updateHiddenInputs);
+
+    // 计算今天的“月份地支”
+    function getMonthEarthlyBranch(table, date = new Date()) {
+        // 遍历 tableG 数组，找到包含给定日期的记录
+        for (let i = 0; i < table.length; i++) {
+            const entry = table[i];
+            const startDate = new Date(entry.开始日期.replace(/\//g, '-'));
+            const endDate = new Date(entry.结束日期.replace(/\//g, '-'));
+
+            if (date >= startDate && date <= endDate) {
+                return entry.月份地支;
+            }
+        }
+
+        // 如果没有找到匹配的记录，返回 null 或其他提示信息
+        return null;
+    }
+
+    // 计算今天的“日期天干”和“日期地支”
+    function calculateGanZhi(date = new Date()) {
+        // 定义天干和地支数组
+        const tianGan = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+        const diZhi = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+
+        // 基准日：2024年12月26日为“甲子”日
+        const baseDate = new Date('2024-12-26');
+        const targetDate = new Date(date);
+
+        // 计算基准日到目标日期的天数差
+        const timeDifference = targetDate - baseDate;
+        const dayDifference = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+
+        // 分别计算天干和地支的索引
+        const ganIndex = (dayDifference + 0) % 10; // 天干以10循环，从0开始计数，对应“甲”
+        const zhiIndex = (dayDifference + 0) % 12; // 地支以12循环，从0开始计数，对应“子”
+
+        // 返回结果
+        return {
+            tianGan: tianGan[ganIndex],
+            diZhi: diZhi[zhiIndex]
+        };
+    }
+
+    // 在页面加载时调用函数并更新UI
+    function loadAndUpdateUI() {
+        const today = new Date();
+
+        // 获取今天的月份地支
+        const monthBranch = getMonthEarthlyBranch(tableG, today);
+        if (monthBranch) {
+            document.getElementById('monthBranchSelect').value = monthBranch;
+            document.getElementById('monthBranch').value = monthBranch;
+        }
+
+        // 获取今天的日期天干和地支
+        const { tianGan, diZhi } = calculateGanZhi(today);
+        document.getElementById('dayStemSelect').value = tianGan;
+        document.getElementById('dayStem').value = tianGan;
+        document.getElementById('dayBranchSelect').value = diZhi;
+        document.getElementById('dayBranch').value = diZhi;
+
+        // 更新隐藏输入框
+        updateHiddenInputs();
+    }
+
+    // 调用函数加载并更新UI
+    loadAndUpdateUI();
+});
+
+
+
+function submitForm() {
+    const hexagramCode = document.getElementById('hexagramCode').value;
+    const monthBranch = document.getElementById('monthBranch').value;
+    const dayStem = document.getElementById('dayStem').value;
+    const dayBranch = document.getElementById('dayBranch').value;
+
+    
+    // 获取有力的五行和有气的五行
+    const { powerfulWuxing, vigorousWuxing } = getWuxingFromTables(monthBranch, dayBranch, tableC, tableD);
+    console.log('月份地支及有力的五行:', monthBranch, powerfulWuxing);
+    console.log('日期地支及有气的五行:', dayBranch, vigorousWuxing);
+
+    if (hexagramCode.length != 6)
+    {
+        return "";
+    }
+
+    // 1. 判断卦类型
+    let movingLinesCount = (hexagramCode.match(/[xy]/g) || []).length;
+    let hexagramType = movingLinesCount === 0 ? '静卦' : '动卦';
+
+    // 2. 定原卦
+    let originalHexagram = hexagramCode.split('');
+
+    // 3. 定本卦
+    let baseHexagram = hexagramCode.replace(/y/g, '1').replace(/x/g, '0').split('');
+    let baseHexagramInfo = findHexagramInfo(baseHexagram.join(''), tableA);
+
+    // 提取本卦的卦名、基准五行
+    let baseHexagramName = baseHexagramInfo && baseHexagramInfo['卦名'] || '';
+    let baseTaoistPointElement = baseHexagramInfo && baseHexagramInfo['宫卦五行'] || '';
+
+    // 4. 定变卦
+    let changingHexagram = hexagramCode.replace(/y/g, '0').replace(/x/g, '1').split('');
+    let changingHexagramInfo = findHexagramInfo(changingHexagram.join(''), tableA);
+
+    // 提取变卦的卦名
+    let changingHexagramName = changingHexagramInfo && changingHexagramInfo['卦名'] || '';
+
+    // 5. 定神五行
+    let deityElements = tableB[dayStem] || [];
+    let deity6 = tableB2[dayStem] || [];
+
+    // 6. 组合卦象信息表
+    let hexagramTable = [];
+    for (let i = 5; i >= 0; i--) {
+        let row = [
+            originalHexagram[i] || '',
+            baseHexagram[i] || '',
+            changingHexagram[i] || '',
+            (baseHexagramInfo && Array.isArray(baseHexagramInfo['本五行Array']) && baseHexagramInfo['本五行Array'][i]) || '',
+            (changingHexagramInfo && Array.isArray(changingHexagramInfo['本五行Array']) && changingHexagramInfo['本五行Array'][i]) || '',
+            (baseHexagramInfo && Array.isArray(baseHexagramInfo['宫五行Array']) && baseHexagramInfo['宫五行Array'][i]) || '',
+            deityElements[i] || '',
+            (baseHexagramInfo && Array.isArray(baseHexagramInfo['本卦地支Array']) && baseHexagramInfo['本卦地支Array'][i]) || '',
+            (baseHexagramInfo && Array.isArray(baseHexagramInfo['宫卦地支Array']) && baseHexagramInfo['宫卦地支Array'][i]) || ''
+        ];
+
+        // 计算并添加新列
+        row.push(
+            findInteraction(tableE, deityElements[i], row[3]), // 神本作用
+            findInteraction(tableE, deityElements[i], row[5]), // 神宫作用
+            findInteraction(tableE, row[4], row[3]),                     // 变本作用
+        yaoflag(originalHexagram[i]),                                            // 爻符号
+        (changingHexagramInfo && Array.isArray(changingHexagramInfo['本卦地支Array']) && changingHexagramInfo['本卦地支Array'][i]) || '',
+        deity6[i],
+        calculateWangRuoGeju(baseHexagramInfo['本五行Array'][i], monthBranch, dayBranch),
+        calculateWangRuoGeju(baseHexagramInfo['宫五行Array'][i], monthBranch, dayBranch),
+        calculateWangRuoGeju(changingHexagramInfo['本五行Array'][i], monthBranch, dayBranch)
+        );
+
+        hexagramTable.push(row);
+    }
+
+    // 更新五行信息表
+    const wuxingInfoTable = [
+        {五行元素: "金"},
+        {五行元素: "木"},
+        {五行元素: "水"},
+        {五行元素: "火"},
+        {五行元素: "土"}
+    ];
+
+    // 计算旺弱格局和神作用
+    wuxingInfoTable.forEach(item => {
+        // 计算旺弱格局
+        const wangRuoGeju = calculateWangRuoGeju(item['五行元素'], monthBranch, dayBranch);
+        
+        // 将旺弱格局存入五行信息表
+        item['旺弱格局'] = wangRuoGeju;
+
+        // 计算神作用和优先神作用
+        item['神作用'] = calculateShenZuoYong(item['五行元素'], hexagramTable,movingLinesCount);
+        item['优先神作用'] = calculatePriorityShenZuoYong(item['五行元素'], hexagramTable,movingLinesCount);
+
+        // 计算神吉凶
+        item['神吉凶'] = calculateShenJiXiong(wangRuoGeju, item['优先神作用'], tableF,movingLinesCount);
+
+    // 计算变作用和优先变作用、变吉凶
+        item['变作用'] = calculateBianZuoYong(item['五行元素'], hexagramTable);
+        item['优先变作用'] = calculatePriorityBianZuoYong(item['五行元素'], hexagramTable);
+    });
+
+    // 创建动爻信息表，并传入五行信息表作为参数
+    let dongYaoInfoTable = createDongYaoInfoTable(hexagramTable, hexagramCode, wuxingInfoTable);
+
+    // 遍历五行信息表，更新“变吉凶”
+    wuxingInfoTable.forEach(item => {
+        item['变吉凶'] = calculateBianJiXiong(
+            item['五行元素'], 
+            item['旺弱格局'], 
+            item['优先变作用'], 
+            tableF, 
+            dongYaoInfoTable
+        );
+
+    if (item['变吉凶'] === '')
+    {
+        item['变作用']='';
+        item['优先变作用']='';
+    }
+    });
+
+    // 计算动吉凶（仅针对动爻个数等于1的情况）
+    if (dongYaoInfoTable.length === 1) {
+        calculateDongJiXiongForSingleMovingLine(wuxingInfoTable, dongYaoInfoTable, tableE, tableF);
+    }
+
+    // 计算动吉凶（仅针对动爻信息表里面含有多条记录且每一条记录的“本五行”全都相同的情况）
+    calculateDongJiXiongForMultipleIdenticalBenWuxing(wuxingInfoTable, dongYaoInfoTable, tableE, tableF);
+
+    // 计算动吉凶（仅针对动爻信息表里面含有多条记录且至少含有两个不同的“本五行”的情况）
+    calculateDongJiXiongForMultipleDifferentBenWuxing(wuxingInfoTable, dongYaoInfoTable, tableE, tableF);
+
+    // 计算最终吉凶
+    calculateZuiZhongJiXiong(wuxingInfoTable, dongYaoInfoTable);
+
+    console.log('基准五行:', baseTaoistPointElement);
+
+    // 计算六亲关系
+    calculateLiuQinRelation(wuxingInfoTable, baseTaoistPointElement, liuQinTable);
+
+    // 显示结果
+    displayAll(wuxingInfoTable,hexagramType,baseHexagramName,baseTaoistPointElement,monthBranch,powerfulWuxing, dayBranch, vigorousWuxing);
+
+    displayResult(hexagramType, hexagramTable, baseHexagramName, baseTaoistPointElement, changingHexagramName, monthBranch, powerfulWuxing, dayBranch, vigorousWuxing);
+    //displayWuxingInfoTable(hexagramType, wuxingInfoTable);
+    displayDongYaoInfoTable(dongYaoInfoTable);
+}
+
+
+function findInteraction(table, element1, element2) {
+    const key = `${element1}${element2}`;
+    return table[key] || '';
+}
+
+function yaoflag(element1) {
+    if (element1 === '0')
+    {
+        return '─ ─';
+    }else if (element1 === '1')
+    {
+        return '——';
+    }else if (element1 === 'x')
+    {
+        return 'x';
+    }else if (element1 === 'y')
+    {
+        return 'O';
+    }
+}
+
+function findHexagramInfo(code, table) {
+    let hexagramInfo = table.find(item => item.编码 === code);
+    
+    if (!hexagramInfo) {
+        console.error('未找到对应的卦信息:', code);
+        return {}; // 返回空对象或默认值
+    }
+
+    // 创建新的变量来保存拆分后的数组，而不覆盖原始字符串
+    const transformedInfo = { ...hexagramInfo };
+
+    ['本五行', '宫五行', '本卦地支', '宫卦地支'].forEach(key => {
+        if (typeof hexagramInfo[key] === 'string') {
+            transformedInfo[key + 'Array'] = hexagramInfo[key].split('');
+        } else {
+            console.warn(`属性 ${key} 不是字符串类型`);
+            transformedInfo[key + 'Array'] = []; // 或者设置为其他默认值
+        }
+    });
+
+    return transformedInfo;
+}
+
+function calculateWangRuoGeju(element, monthBranch, dayBranch) {
+    const hasLi = tableC[monthBranch] && tableC[monthBranch].includes(element);
+    const youQi = tableD[dayBranch] && tableD[dayBranch].includes(element);
+
+    if (hasLi && youQi) return "从旺格";
+    if (hasLi && !youQi) return "旺格";
+    if (!hasLi && youQi) return "弱格";
+    if (!hasLi && !youQi) return "从弱格";
+
+    return "";
+}
+
+function calculateShenZuoYong(element, hexagramTable, movingLinesCount) {
+    if (movingLinesCount > 0)
+    {
+        return '';
+    }
+    // 查找所有本五行等于当前五行元素的记录，并提取第7和第10个元素
+    let shenBenRecords = hexagramTable
+        .filter(row => row[3] === element)
+        .map(row => `${row[6]}(${row[9]})`);
+
+    if (shenBenRecords.length > 0) {
+        return shenBenRecords.join(' ');
+    } else {
+        // 如果没有找到，查找宫五行等于当前五行元素的记录
+        let shenGongRecord = hexagramTable.find(row => row[5] === element);
+        
+        if (shenGongRecord) {
+            return `${shenGongRecord[6]}(${shenGongRecord[10]})`; // 组合第7和第11个元素
+        }
+    }
+
+    return "";
+}
+
+
+function calculatePriorityShenZuoYong(element, hexagramTable, movingLinesCount) {
+    if (movingLinesCount > 0)
+    {
+        return '';
+    }
+    // 查找所有本五行等于当前五行元素的记录，并按优先级排序
+    let shenBenRecords = hexagramTable.filter(row => row[3] === element).map(row => ({ role: row[9], priority: priorityOrder[row[9]] }))
+        .sort((a, b) => b.priority - a.priority);
+
+    if (shenBenRecords.length > 0) {
+        return shenBenRecords[0].role; // 返回最高优先级的神本作用
+    } else {
+        // 如果没有找到，查找宫五行等于当前五行元素的记录
+        let shenGongRecord = hexagramTable.find(row => row[5] === element);
+        
+        if (shenGongRecord) {
+            return shenGongRecord[10]; // 取第一条记录的神宫作用
+        }
+    }
+
+    return "";
+}
+
+function calculateShenJiXiong(wangRuoGeju, priorityRole, tableF, movingLinesCount) {
+    if (movingLinesCount > 0)
+    {
+        return '';
+    }
+    const combination = `${wangRuoGeju}${priorityRole}`;
+    
+    // 查找附表F中对应的吉凶
+    let match = tableF.find(item => item.组合 === combination);
+    
+    if (match) {
+        return match.吉凶;
+    } else {
+        // 如果没有找到匹配项，则返回默认值或"未知"
+        return "";
+    }
+}
+
+function calculateBianZuoYong(element, hexagramTable) {
+    // 查找所有本五行等于当前五行元素，并且 row[0] 的取值为 x 或 y 的记录
+    let matchingRecords = hexagramTable
+        .filter(row => row[3] === element && (row[0] === 'x' || row[0] === 'y'))
+        .map(row => `${row[4]}(${row[11]})`);
+
+    if (matchingRecords.length > 0) {
+        // 将所有匹配的变本作用组合成字符串
+        return matchingRecords.join(' ');
+    } else {
+        return "";
+    }
+}
+
+function calculatePriorityBianZuoYong(element, hexagramTable) {
+    // 查找所有本五行等于当前五行元素的记录
+    let matchingRecords = hexagramTable
+    .filter(row => row[3] === element && (row[0] === 'x' || row[0] === 'y'))
+    .map(row => ({ bianBenZuoYong: row[11], priority: priorityOrder[row[11]] }));
+
+    if (matchingRecords.length > 0) {
+        // 按优先级排序并取最高优先级的变本作用
+        matchingRecords.sort((a, b) => b.priority - a.priority);
+        return matchingRecords[0].bianBenZuoYong;
+    } else {
+        return "";
+    }
+}
+
+function calculateBianJiXiong(wuxingElement, wangRuoGeju, youxianBianZuoYong, tableF, dongYaoInfoTable) {
+    // 检查“五行元素”是否在动爻信息表中有对应的“本五行”
+    const hasMatchingBenWuxing = dongYaoInfoTable.some(row => row['本五行'] === wuxingElement);
+
+    if (!hasMatchingBenWuxing) {
+        return ''; // 如果没有找到对应的“本五行”，则变吉凶为空
+    }
+
+    // 组合成字符串并查找附表F对应的吉凶
+    const matchKey = `${wangRuoGeju}${youxianBianZuoYong}`;
+    const match = tableF.find(item => item.组合 === matchKey);
+    return match ? match.吉凶 : '';
+}
+
+//创建动爻信息表
+function createDongYaoInfoTable(hexagramTable, hexagramCode, wuxingInfoTable) {
+    // 判断是否是动卦
+    let isMovingHexagram = (hexagramCode.match(/[xy]/g) || []).length > 0;
+
+    if (!isMovingHexagram) {
+        return []; // 如果不是动卦，返回空数组
+    }
+
+    // 筛选出原卦编码为"x"或"y"的记录，并提取所需的列
+    let dongYaoInfoTable = hexagramTable.filter(row => ['x', 'y'].includes(row[0]))
+        .map(row => ({
+            本五行: row[3],
+            变五行: row[4],
+            变本作用: row[11]
+        }));
+
+    // 增加旺弱格局列
+    dongYaoInfoTable.forEach(dongYaoRow => {
+        // 查找五行信息表中对应的旺弱格局
+        const matchingWuxingRow = wuxingInfoTable.find(wuxingRow => wuxingRow['五行元素'] === dongYaoRow['本五行']);
+        dongYaoRow['旺弱格局'] = matchingWuxingRow ? matchingWuxingRow['旺弱格局'] : '未知';
+
+        // 计算是否弱极
+        const bianBenZuoYong = dongYaoRow['变本作用'];
+        const wangRuoGeju = dongYaoRow['旺弱格局'];
+        dongYaoRow['是否弱极'] = (['克', '泄', '耗'].includes(bianBenZuoYong) && wangRuoGeju === '从弱格') ? 'Y' : 'N';
+    });
+
+    return dongYaoInfoTable;
+}
+
+//计算单动爻作用下的吉凶
+function calculateDongJiXiongForSingleMovingLine(wuxingInfoTable, dongYaoInfoTable, tableE, tableF) {
+    if (dongYaoInfoTable.length !== 1) return; // 只处理动爻个数等于1的情况
+
+    const [dongYaoRow] = dongYaoInfoTable;
+    const { 本五行: benWuxing, 是否弱极: ruoJi } = dongYaoRow;
+
+    wuxingInfoTable.forEach(wuxingRow => {
+        const { 五行元素: wuxingElement, 变吉凶: bianJiXiong, 旺弱格局: wangRuoGeju } = wuxingRow;
+
+    wuxingRow['动爻作用'] = '';
+
+        if (benWuxing === wuxingElement) {
+            // 情况①：如果五行元素与动爻信息表中的本五行相同
+            wuxingRow['动吉凶'] = bianJiXiong;
+        wuxingRow['动爻作用'] = `${dongYaoRow['变五行']}(${dongYaoRow['变本作用']})`;
+        } else {
+            // 情况②：如果五行元素与动爻信息表中的本五行不同
+            const interactionKey = `${benWuxing}${wuxingElement}`;
+            const dongYaoZuoYong = tableE[interactionKey] || '';
+
+            // 查找附表F对应的吉凶
+            const match = tableF.find(item => item.组合 === `${wangRuoGeju}${dongYaoZuoYong}`);
+            let jiXiong = match ? match.吉凶 : '';
+
+            // 如果是否弱极为Y且旺弱格局为“旺格”或“弱格”，则反断
+            if (ruoJi === 'Y' && ['旺格', '弱格'].includes(wangRuoGeju)) {
+                jiXiong = jiXiong === '吉' ? '凶' : jiXiong === '凶' ? '吉' : jiXiong;
+        wuxingRow['动爻作用'] = `${benWuxing}(${dongYaoZuoYong})[反]`;
+            }
+        else{
+        wuxingRow['动爻作用'] = `${benWuxing}(${dongYaoZuoYong})`;
+        }
+
+            wuxingRow['动吉凶'] = jiXiong;
+        }
+    });
+}
+
+//计算多动爻（但全都相同）作用下的吉凶
+function calculateDongJiXiongForMultipleIdenticalBenWuxing(wuxingInfoTable, dongYaoInfoTable, tableE, tableF) {
+    // 检查是否所有动爻信息表中的记录的“本五行”都相同
+    if (dongYaoInfoTable.length < 2 || new Set(dongYaoInfoTable.map(row => row['本五行'])).size !== 1) return;
+
+    // 取出唯一的“本五行”
+    const benWuxing = dongYaoInfoTable[0]['本五行'];
+
+    // 优先选择“是否弱极”为N的记录，如果全都是Y则取任意一条
+    const selectedDongYaoRow = dongYaoInfoTable.find(row => row['是否弱极'] === 'N') || dongYaoInfoTable[0];
+    const { 是否弱极: ruoJi, 变五行: bianWuxing, 变本作用: bianbenZuoyong } = selectedDongYaoRow;
+
+    wuxingInfoTable.forEach(wuxingRow => {
+        const { 五行元素: wuxingElement, 变吉凶: bianJiXiong, 旺弱格局: wangRuoGeju } = wuxingRow;
+
+    wuxingRow['动爻作用'] = '';
+
+        if (benWuxing === wuxingElement) {
+            // 情况①：如果五行元素与动爻信息表中的本五行相同
+            wuxingRow['动吉凶'] = bianJiXiong;
+        wuxingRow['动爻作用'] = `${bianWuxing}${bianbenZuoyong}`;
+        console.log(`${benWuxing}的综合作用：${bianWuxing}${bianbenZuoyong}`);
+        } else {
+            // 情况②：如果五行元素与动爻信息表中的本五行不同
+            const interactionKey = `${benWuxing}${wuxingElement}`;
+            const dongYaoZuoYong = tableE[interactionKey] || '';
+
+            // 查找附表F对应的吉凶
+            const match = tableF.find(item => item.组合 === `${wangRuoGeju}${dongYaoZuoYong}`);
+            let jiXiong = match ? match.吉凶 : '';
+
+            // 如果是否弱极为Y且旺弱格局为“旺格”或“弱格”，则反断
+            if (ruoJi === 'Y' && ['旺格', '弱格'].includes(wangRuoGeju)) {
+                jiXiong = jiXiong === '吉' ? '凶' : jiXiong === '凶' ? '吉' : jiXiong;
+        }
+
+        if (ruoJi === 'Y' ){
+        wuxingRow['动爻作用'] = `${benWuxing}${dongYaoZuoYong}[弱极]`;
+        }else{
+        wuxingRow['动爻作用'] = `${benWuxing}${dongYaoZuoYong}`;
+        }
+
+            wuxingRow['动吉凶'] = jiXiong;
+        }
+    });
+}
+
+//计算多动爻（且存在多个不同的五行）作用下的吉凶
+function calculateDongJiXiongForMultipleDifferentBenWuxing(wuxingInfoTable, dongYaoInfoTable, tableE, tableF) {
+    // 检查是否动爻信息表中至少有两个不同的“本五行”
+    const uniqueBenWuxing = new Set(dongYaoInfoTable.map(row => row['本五行']));
+    if (uniqueBenWuxing.size < 2) return;
+
+    // 去重生成“精简动爻信息表”
+    const refinedDongYaoInfoTable = Array.from(uniqueBenWuxing).map(benWuxing => {
+        const matchingRows = dongYaoInfoTable.filter(row => row['本五行'] === benWuxing);
+        return selectRepresentativeRow(matchingRows);
+    });
+
+    wuxingInfoTable.forEach(wuxingRow => {
+        const { 五行元素: wuxingElement, 变吉凶: bianJiXiong, 旺弱格局: wangRuoGeju } = wuxingRow;
+
+    wuxingRow['动爻作用'] = '';
+
+        console.log(`\n处理五行元素: ${wuxingElement}`);
+        console.log('精简动爻信息表:', refinedDongYaoInfoTable);
+
+        // 创建或清空临时数组“有效动爻信息表”
+        let effectiveDongYaoInfoTable = [];
+
+        // 第二步：取出“精简动爻信息表”里面“本五行”与“五行元素”不相同的那些记录
+        refinedDongYaoInfoTable.forEach(dongYaoRow => {
+            if (dongYaoRow['本五行'] !== wuxingElement) {
+                effectiveDongYaoInfoTable.push({ ...dongYaoRow, 是否有效: null });
+            }
+        });
+
+        console.log('有效动爻信息表:', effectiveDongYaoInfoTable);
+
+        // 第三步：增加一列“是否有效”
+        const allWeak = effectiveDongYaoInfoTable.every(row => row['是否弱极'] === 'Y');
+        const isFromWangOrRuo = ['从旺格', '从弱格'].includes(wangRuoGeju);
+
+        effectiveDongYaoInfoTable.forEach(row => {
+            if (allWeak || isFromWangOrRuo) {
+                row['是否有效'] = 'Y';
+            } else {
+                row['是否有效'] = row['是否弱极'] === 'Y' ? 'N' : 'Y';
+            }
+        });
+
+        console.log('更新后的有效动爻信息表:', effectiveDongYaoInfoTable);
+
+        // 定义优先级映射表
+        const priorityMap = { 泄: 5, 耗: 4, 生: 3, 帮: 2, 克: 1 };
+
+        // 第四步：内循环遍历“有效动爻信息表”，逐条计算
+        let highestPriorityInteraction = null;
+        let highestPriority = 0; // 用最小值初始化，因为我们希望找到最大优先级
+
+        for (const dongYaoRow of effectiveDongYaoInfoTable) {
+            if (dongYaoRow['本五行'] === wuxingElement || dongYaoRow['是否有效'] === 'N') continue;
+
+            const interactionKey = `${dongYaoRow['本五行']}${wuxingElement}`;
+            const interaction = tableE[interactionKey] || '';
+            const priority = priorityMap[interaction] || 0;
+
+            console.log(`处理动爻作用关系: ${interaction}, 优先级: ${priority}`);
+
+            if (priority > highestPriority) {
+                highestPriority = priority;
+                highestPriorityInteraction = { 动爻作用关系: interaction, 是否弱极: dongYaoRow['是否弱极'] };
+            }
+
+            if (dongYaoRow['是否弱极'] === 'Y')
+            {
+            wuxingRow['动爻作用']=`${wuxingRow['动爻作用']}${dongYaoRow['本五行']}(${interaction},弱极) `
+            }else{
+            wuxingRow['动爻作用']=`${wuxingRow['动爻作用']}${dongYaoRow['本五行']}(${interaction}) `
+            }
+
+        }
+
+        console.log('最高优先级的动爻作用关系:', highestPriorityInteraction);
+
+        if (highestPriorityInteraction) {
+            // 第五步：查找附表F对应的吉凶
+            const match = tableF.find(item => item.组合 === `${wangRuoGeju}${highestPriorityInteraction.动爻作用关系}`);
+            let jiXiong = match ? match.吉凶 : '';
+
+            // 如果“是否弱极”为Y且旺弱格局为“旺格”或“弱格”，则反断
+            if (highestPriorityInteraction.是否弱极 === 'Y' && ['旺格', '弱格'].includes(wangRuoGeju)) {
+                jiXiong = jiXiong === '吉' ? '凶' : jiXiong === '凶' ? '吉' : jiXiong;
+            }
+
+            wuxingRow['动吉凶'] = jiXiong;
+            console.log(`五行元素: ${wuxingElement}, 动吉凶: ${jiXiong}`);
+        } else {
+            wuxingRow['动吉凶'] = '';
+            console.log(`五行元素: ${wuxingElement}, 无有效的动爻作用关系，动吉凶: `);
+        }
+    });
+}
+
+// 辅助函数用于选择代表记录
+function selectRepresentativeRow(rows) {
+    // 优先选择“是否弱极”为N的记录，如果有多个则选择第一个
+    const nonWeakRows = rows.filter(row => row['是否弱极'] === 'N');
+    if (nonWeakRows.length > 0) {
+        return nonWeakRows[0];
+    }
+    // 如果没有“是否弱极”为N的记录，则选择任意一条记录
+    return rows[0];
+}
+
+//计算最终吉凶
+function calculateZuiZhongJiXiong(wuxingInfoTable, dongYaoInfoTable) {
+    // 检查是否是静卦（即动爻信息表为空）
+    const isStaticHexagram = dongYaoInfoTable.length === 0;
+
+    // 检查动爻个数
+    const numDongYao = dongYaoInfoTable.length;
+    const allSameBenWuxing = new Set(dongYaoInfoTable.map(row => row['本五行'])).size === 1;
+
+    wuxingInfoTable.forEach(item => {
+        if (isStaticHexagram) {
+            // 静卦，取“神吉凶”为“最终吉凶”
+            item['最终吉凶'] = item['神吉凶'];
+        } else if (numDongYao === 1 || (numDongYao > 1 && allSameBenWuxing)) {
+            // 动卦且动爻个数等于1 或者 动爻个数大于1且所有记录的“本五行”相同，取“动吉凶”为“最终吉凶”
+            item['最终吉凶'] = item['动吉凶'] || '';
+        } else {
+            // 其他情况下，组合内吉凶和外吉凶
+            const innerJiXiong = item['变吉凶'] || '';
+            const outerJiXiong = item['动吉凶'] || '';
+        if (innerJiXiong === '')
+        {
+            item['最终吉凶'] = `${outerJiXiong}`
+        }else{
+            item['最终吉凶'] = `内${innerJiXiong}·外${outerJiXiong}`;
+        }
+        }
+
+    item['最终吉凶'] = item['最终吉凶'].replace(/吉/g, '√').replace(/凶/g, '×');
+    });
+}
+
+//计算六亲
+function calculateLiuQinRelation(wuxingInfoTable, baseWuxing, liuQinTable) {
+    console.log('开始计算六亲关系...');
+    console.log('基准五行:', baseWuxing);
+    console.log('五行信息表:', wuxingInfoTable);
+    console.log('六亲关系表:', liuQinTable);
+
+    // 遍历五行信息表，逐条计算“六亲关系”
+    wuxingInfoTable.forEach(item => {
+        const wuxingElement = item['五行元素'];
+        const wuxingCombination = `${baseWuxing}${wuxingElement}`;
+        
+        console.log(`处理五行元素: ${wuxingElement}, 组合成: ${wuxingCombination}`);
+
+        // 查找附表G中的六亲关系
+        const match = liuQinTable.find(entry => entry.五行组合 === wuxingCombination);
+        
+        if (match) {
+            item['六亲关系'] = match.六亲关系;
+            console.log(`找到匹配的六亲关系: ${match.六亲关系}`);
+        } else {
+            item['六亲关系'] = '';
+            console.log(`未找到匹配的六亲关系，设置为未知`);
+        }
+    });
+
+    console.log('计算六亲关系完成');
+    console.log('更新后的五行信息表:', wuxingInfoTable);
+}
+
+//计算有力、有气
+function getWuxingFromTables(monthBranch, dayBranch, tableC, tableD) {
+    // 查询附表C，获取有力的五行（可能为数组）
+    const powerfulWuxing = tableC[monthBranch] || [''];
+
+    // 查询附表D，获取有气的五行（可能为数组）
+    const vigorousWuxing = tableD[dayBranch] || [''];
+
+    return {
+        powerfulWuxing: powerfulWuxing.join(', '),    // 将数组转换为字符串
+        vigorousWuxing: vigorousWuxing.join(', ')     // 将数组转换为字符串
+    };
+}
+
+// 函数：获取有利的年份、月份和日期
+function getFavorableYearsMonthsDays(baseWuXing) {
+        // 1. 查找益五行
+        const beneficialWuXings = tableI.find(item => item.基准五行 === baseWuXing)?.益五行;
+        if (!beneficialWuXings) return null;
+
+        // 如果益五行是字符串，转换为数组
+        const beneficialWuXingArray = Array.isArray(beneficialWuXings) ? beneficialWuXings : [beneficialWuXings];
+
+        // 2. 查找有利年份
+        const favorableYears = tableH
+                .filter(year => beneficialWuXingArray.includes(year.五行))
+                .map(year => `${year.年份}(${year.五行})`);
+
+        // 3. 查找有利月份地支
+        const favorableMonthBranches = Object.entries(tableC)
+                .filter(([branch, wuxing]) => wuxing.includes(baseWuXing))
+                .map(([branch]) => branch);
+
+
+        // 4. 查找有利日期地支
+        const favorableDayBranches = Object.entries(tableD)
+                .filter(([branch, wuxing]) => wuxing.includes(baseWuXing))
+                .map(([branch]) => branch);
+
+        return {
+                favorableYears,
+                favorableMonthBranches,
+                favorableDayBranches
+        };
+}
+
+
+// 函数：获取有损的年份、月份和日期
+function getBadYearsMonthsDays(baseWuXing) {
+        console.log(`Function called with baseWuXing: ${baseWuXing}`);
+
+        // 1. 查找损五行
+        const badWuXingsInfo = tableJ.find(item => item.基准五行 === baseWuXing);
+        console.log(`Found badWuXingsInfo for ${baseWuXing}:`, badWuXingsInfo);
+
+        const badWuXings = badWuXingsInfo?.损五行;
+        if (!badWuXings) {
+                console.error(`No badWuXings found for baseWuXing: ${baseWuXing}`);
+                return null;
+        }
+
+        // 如果益五行是字符串，转换为数组
+        const badWuXingArray = Array.isArray(badWuXings) ? badWuXings : [badWuXings];
+
+        // 2. 查找有损的年份
+        const badYears = tableH
+                .filter(year => badWuXingArray.includes(year.五行))
+                .map(year => `${year.年份}(${year.五行})`);
+
+        console.log(`${baseWuXing}损年份:`, badYears);
+
+        // 3. 查找有损的月份地支（这部分逻辑未提供完整数据，暂时保持不变）
+        const badMonthBranches = Object.entries(tableC)
+                .filter(([branch, wuxing]) => !wuxing.includes(baseWuXing))
+                .map(([branch]) => branch);
+
+        // 4. 查找有损的日期地支（这部分逻辑未提供完整数据，暂时保持不变）
+        const badDayBranches = Object.entries(tableD)
+                .filter(([branch, wuxing]) => !wuxing.includes(baseWuXing))
+                .map(([branch]) => branch);
+
+        return {
+                badYears,
+                badMonthBranches,
+                badDayBranches
+        };
+}
+
+
+// 辅助函数：将损五行字符串转换为数组
+function parseWuXings(wuXings) {
+        if (Array.isArray(wuXings)) return wuXings;
+        if (typeof wuXings === 'string') {
+                // 如果是字符串，则按非字母字符分割并过滤掉空字符串
+                return wuXings.split(/[^金木水火土]/).filter(Boolean);
+        }
+        return [];
+}
+
+
+
+
+// 打印：最终信息
+function displayAll(table, hexagramType, baseHexagramName, baseTaoistPointElement, monthBranch, powerfulWuxing, dayBranch, vigorousWuxing) {
+    let resultDiv = document.getElementById('result_all');
+
+    // 更新表格行生成函数，包含“有益的日子”列，并根据条件对调“增吉日”、“增凶日”的内容
+    const generateRow = row => {
+        const favorableInfo = getFavorableYearsMonthsDays(row['五行元素']);
+        const badInfo = getBadYearsMonthsDays(row['五行元素']);
+
+        // 根据旺弱格局判断是否需要对调
+        const isWeakOrStrongFrom = ['弱格', '从旺格'].includes(row['旺弱格局']);
+        
+        const [goodYears, goodMonthBranches, goodDayBranches] = isWeakOrStrongFrom 
+            ? [favorableInfo?.favorableYears || [], favorableInfo?.favorableMonthBranches || [], favorableInfo?.favorableDayBranches || []]
+            : [badInfo?.badYears || [], badInfo?.badMonthBranches || [], badInfo?.badDayBranches || []];
+
+        const [badYears, badMonthBranches, badDayBranches] = isWeakOrStrongFrom 
+            ? [badInfo?.badYears || [], badInfo?.badMonthBranches || [], badInfo?.badDayBranches || []]
+            : [favorableInfo?.favorableYears || [], favorableInfo?.favorableMonthBranches || [], favorableInfo?.favorableDayBranches || []];
+
+        return `
+            <tr>
+                <td style="text-align: left;"><b>${row['六亲关系']}（${row['最终吉凶']}）</b></td>
+                <td style="text-align: left;">${row['五行元素']}-${row['旺弱格局']}</td>
+                <td style="text-align: left;">
+                    年: ${goodYears.join(', ') || ''}<br>
+                    月: ${goodMonthBranches.join(', ') || ''}<br>
+                    日: ${goodDayBranches.join(', ') || ''}
+                </td>
+                <td style="text-align: left;">
+                    年: ${badYears.join(', ') || ''}<br>
+                    月: ${badMonthBranches.join(', ') || ''}<br>
+                    日: ${badDayBranches.join(', ') || ''}
+                </td>
+            </tr>
+        `;
+    };
+
+    // 静卦和动卦的逻辑保持不变，只需要更新行生成函数
+    if (hexagramType === '静卦') {
+        resultDiv.innerHTML = `
+            <p>${baseHexagramName}，${baseTaoistPointElement}宫</p>
+            <p>${monthBranch}月：{${powerfulWuxing}} 有力，${dayBranch}日：{${vigorousWuxing}} 有气</p>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>六亲吉凶</th>
+                        <th>六亲五行</th>
+                        <th>增吉日</th>
+                        <th>增凶日</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${table.map(generateRow).join('')}
+                </tbody>
+            </table>
+        `;
+    } else {
+        resultDiv.innerHTML = `
+            <p>${baseHexagramName}，${baseTaoistPointElement}为宫</p>
+            <p>${monthBranch}月：{${powerfulWuxing}} 有力，${dayBranch}日：{${vigorousWuxing}} 有气</p>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>六亲吉凶</th>
+                        <th>六亲五行</th>
+                        <th>增吉日</th>
+                        <th>增凶日</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${table.map(generateRow).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+}
+
+// 打印：卦象信息表
+function displayResult(hexagramType, hexagramTable, baseHexagramName, baseTaoistPointElement, changingHexagramName, monthBranch, powerfulWuxing, dayBranch, vigorousWuxing) {
+    const resultDiv = document.getElementById('result');
+
+    // 辅助函数：替换旺弱格局的文本
+    function replaceWangRuoGeju(text) {
+        return text.replace('从弱格', 'cr').replace('从旺格', 'cw').replace('旺格', 'w').replace('弱格', 'r');
+    }
+
+    // 辅助函数：生成表格行
+    function generateRow(row) {
+        const row15 = replaceWangRuoGeju(row[15] || '');
+        const row16 = replaceWangRuoGeju(row[16] || '');
+        const row17 = replaceWangRuoGeju(row[17] || '');
+
+        return `
+            <tr>
+                ${hexagramType === '静卦' 
+                    ? `<td>${row[14]}(${row[6]})</td> <!-- 神五行 -->
+                        <td>${row[12]}</td> <!-- 爻编码 -->
+                        <td style="text-align: left;">${row[7]}(${row[3]}) ${row15}</td> <!-- 本卦地支五行 -->
+                        <td style="text-align: left;">${row[8]}(${row[5]}) ${row16}</td> <!-- 宫卦地支五行 -->`
+                    : `<td>${row[12]}</td> <!-- 爻编码 -->
+                        <td style="text-align: left;">${row[7]}(${row[3]}) ${row15}</td> <!-- 本卦地支五行 -->
+                        <td style="text-align: left;">${row[13]}(${row[4]}) ${row17}</td> <!-- 变卦五行 -->`
+                }
+            </tr>
+        `;
+    }
+
+    // 更新结果 div 内容
+    resultDiv.innerHTML = `
+        <div>----------附加信息----------</div>
+        <table border="1" style="border-collapse: collapse; border-color: #ddd;">
+            <thead>
+                <tr>
+                    ${hexagramType === '静卦'
+                        ? `<th>六神</th><th>卦爻</th><th style="text-align: left;">纳甲地支</th><th style="text-align: left;">宫卦地支</th>`
+                        : `<th>卦爻</th><th style="text-align: left;">纳甲地支</th><th style="text-align: left;">变卦地支</th>`
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                ${hexagramTable.map(generateRow).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+//打印：卦象信息表
+function displayResult_old(hexagramType, hexagramTable, baseHexagramName, baseTaoistPointElement, changingHexagramName, monthBranch, powerfulWuxing, dayBranch, vigorousWuxing) {
+    let resultDiv = document.getElementById('result');
+
+    if (hexagramType === '静卦')
+    {
+        resultDiv.innerHTML = `
+        <div>----------附加信息----------</div>
+        <table border="1">
+            <thead>
+            <tr>
+                <th>六神</th>
+                <th>卦爻</th>
+                <th>纳甲地支</th>
+                <th>宫卦地支</th>
+            </tr>
+            </thead>
+            <tbody>
+            ${hexagramTable.map(row => `
+                <tr>
+                <td>${row[14]}(${row[6]})</td> <!-- 神五行 -->
+                <td>${row[12]}</td> <!-- 爻编码 -->
+                <td>${row[7]}(${row[3]}) ${row[15]}</td> <!-- 本卦地支五行 -->
+                <td>${row[8]}(${row[5]}) ${row[16]}</td> <!-- 宫卦地支五行 -->
+                </tr>
+            `).join('')}
+            </tbody>
+        </table>
+        `;    
+    } else {
+        resultDiv.innerHTML = `
+        <div>----------附加信息----------</div>
+        <table border="1">
+            <thead>
+            <tr>
+                <th>卦爻</th>
+                <th>纳甲地支</th>
+                <th>变卦地支</th>
+            </tr>
+            </thead>
+            <tbody>
+            ${hexagramTable.map(row => `
+                <tr>
+                <td>${row[12]}</td> <!-- 爻编码 -->
+                <td>${row[7]}(${row[3]}) ${row[15]}</td> <!-- 本卦地支五行 -->
+                <td>${row[13]}(${row[4]}) ${row[17]}</td> <!-- 变卦五行 -->
+                </tr>
+            `).join('')}
+            </tbody>
+        </table>
+        `;    
+    }
+}
+
+
+//打印：五行信息表
+function displayWuxingInfoTable(hexagramType, table) {
+    let resultDiv = document.getElementById('wuxingResult');
+    if (hexagramType === '静卦')
+    {
+    resultDiv.innerHTML = `
+        <p>五行信息表</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>六亲-五行</th>
+                    <th>旺弱格局</th>
+                    <th>六神作用</th>
+                    <th>论</th>
+                    <th>吉凶</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${table.map(row => `<tr><td>${row['六亲关系']}-${row['五行元素']}</td><td>${row['旺弱格局']}</td><td>${row['神作用']}</td><td>${row['优先神作用']}</td><td>${row['神吉凶']}</td></tr>`).join('')}
+            </tbody>
+        </table>
+    `;
+    } else {
+    resultDiv.innerHTML = `
+        <p>五行信息表</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>六亲-五行</th>
+                    <th>旺弱格局</th>
+                    <th>变爻作用</th>
+                    <th>论</th>
+                    <th>吉凶</th>
+                    <th>动爻作用</th>
+                    <th>吉凶</th>
+                    <th>最终吉凶</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${table.map(row => `<tr><td>${row['六亲关系']}-${row['五行元素']}</td><td>${row['旺弱格局']}</td><td>${row['变作用']}</td><td>${row['优先变作用']}</td><td>${row['变吉凶']}</td><td>${row['动爻作用']}</td><td>${row['动吉凶']}</td><td>${row['最终吉凶']}</td><td></td></tr>`).join('')}
+            </tbody>
+        </table>
+    `;    
+    }
+}
+
+//打印：动爻信息表
+function displayDongYaoInfoTable(table) {
+    let resultDiv = document.getElementById('dongYaoResult');
+    
+    if (table.length === 0) {
+        resultDiv.innerHTML = '';
+    } else {
+        resultDiv.innerHTML = `
+            <p>动爻信息表</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>动爻五行</th>
+                        <th>旺弱格局</th>
+                        <th>变爻作用</th>
+                        <th>是否弱极</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${table.map(row => `<tr><td>${row['本五行']}</td><td>${row['旺弱格局']}</td><td>得${row['变五行']}${row['变本作用']}</td><td>${row['是否弱极']}</td></tr>`).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+}
+
+const priorityOrder = {
+    '泄': 5,
+    '耗': 4,
+    '克': 3,
+    '生': 2,
+    '帮': 1
+};
+
+
+const tableA = [
+        {编码: "111111", 卦名: "乾为天", 宫卦五行: "金", 本卦地支: "子寅辰午申戌", 宫卦地支: "子寅辰午申戌", 本五行: "水木土火金土", 宫五行: "水木土火金土"},
+        {编码: "011111", 卦名: "天风姤", 宫卦五行: "金", 本卦地支: "丑亥酉午申戌", 宫卦地支: "子寅辰午申戌", 本五行: "土水金火金土", 宫五行: "水木土火金土"},
+        {编码: "001111", 卦名: "天山遁", 宫卦五行: "金", 本卦地支: "辰午申午申戌", 宫卦地支: "子寅辰午申戌", 本五行: "土火金火金土", 宫五行: "水木土火金土"},
+        {编码: "000111", 卦名: "天地否", 宫卦五行: "金", 本卦地支: "未巳卯午申戌", 宫卦地支: "子寅辰午申戌", 本五行: "土火木火金土", 宫五行: "水木土火金土"},
+        {编码: "000011", 卦名: "风地观", 宫卦五行: "金", 本卦地支: "未巳卯未巳卯", 宫卦地支: "子寅辰午申戌", 本五行: "土火木土火木", 宫五行: "水木土火金土"},
+        {编码: "000001", 卦名: "山地剥", 宫卦五行: "金", 本卦地支: "未巳卯戌子寅", 宫卦地支: "子寅辰午申戌", 本五行: "土火木土水木", 宫五行: "水木土火金土"},
+        {编码: "000101", 卦名: "火地晋", 宫卦五行: "金", 本卦地支: "未巳卯酉未巳", 宫卦地支: "子寅辰午申戌", 本五行: "土火木金土火", 宫五行: "水木土火金土"},
+        {编码: "111101", 卦名: "火天大有", 宫卦五行: "金", 本卦地支: "子寅辰酉未巳", 宫卦地支: "子寅辰午申戌", 本五行: "水木土金土火", 宫五行: "水木土火金土"},
+        {编码: "010010", 卦名: "坎为水", 宫卦五行: "水", 本卦地支: "寅辰午申戌子", 宫卦地支: "寅辰午申戌子", 本五行: "木土火金土水", 宫五行: "木土火金土水"},
+        {编码: "110010", 卦名: "水泽节", 宫卦五行: "水", 本卦地支: "巳卯丑申戌子", 宫卦地支: "寅辰午申戌子", 本五行: "火木土金土水", 宫五行: "木土火金土水"},
+        {编码: "100010", 卦名: "水雷屯", 宫卦五行: "水", 本卦地支: "子寅辰申戌子", 宫卦地支: "寅辰午申戌子", 本五行: "水木土金土水", 宫五行: "木土火金土水"},
+        {编码: "101010", 卦名: "水火既济", 宫卦五行: "水", 本卦地支: "卯丑亥申戌子", 宫卦地支: "寅辰午申戌子", 本五行: "木土水金土水", 宫五行: "木土火金土水"},
+        {编码: "101110", 卦名: "泽火革", 宫卦五行: "水", 本卦地支: "卯丑亥亥酉未", 宫卦地支: "寅辰午申戌子", 本五行: "木土水水金土", 宫五行: "木土火金土水"},
+        {编码: "101100", 卦名: "雷火丰", 宫卦五行: "水", 本卦地支: "卯丑亥午申戌", 宫卦地支: "寅辰午申戌子", 本五行: "木土水火金土", 宫五行: "木土火金土水"},
+        {编码: "101000", 卦名: "地火明夷", 宫卦五行: "水", 本卦地支: "卯丑亥丑亥酉", 宫卦地支: "寅辰午申戌子", 本五行: "木土水土水金", 宫五行: "木土火金土水"},
+        {编码: "010000", 卦名: "地水师", 宫卦五行: "水", 本卦地支: "寅辰午丑亥酉", 宫卦地支: "寅辰午申戌子", 本五行: "木土火土水金", 宫五行: "木土火金土水"},
+        {编码: "001001", 卦名: "艮为山", 宫卦五行: "土", 本卦地支: "辰午申戌子寅", 宫卦地支: "辰午申戌子寅", 本五行: "土火金土水木", 宫五行: "土火金土水木"},
+        {编码: "101001", 卦名: "山火贲", 宫卦五行: "土", 本卦地支: "卯丑亥戌子寅", 宫卦地支: "辰午申戌子寅", 本五行: "木土水土水木", 宫五行: "土火金土水木"},
+        {编码: "111001", 卦名: "山天大畜", 宫卦五行: "土", 本卦地支: "子寅辰戌子寅", 宫卦地支: "辰午申戌子寅", 本五行: "水木土土水木", 宫五行: "土火金土水木"},
+        {编码: "110001", 卦名: "山泽损", 宫卦五行: "土", 本卦地支: "巳卯丑戌子寅", 宫卦地支: "辰午申戌子寅", 本五行: "火木土土水木", 宫五行: "土火金土水木"},
+        {编码: "110101", 卦名: "火泽睽", 宫卦五行: "土", 本卦地支: "巳卯丑酉未巳", 宫卦地支: "辰午申戌子寅", 本五行: "火木土金土火", 宫五行: "土火金土水木"},
+        {编码: "110111", 卦名: "天泽履", 宫卦五行: "土", 本卦地支: "巳卯丑午申戌", 宫卦地支: "辰午申戌子寅", 本五行: "火木土火金土", 宫五行: "土火金土水木"},
+        {编码: "110011", 卦名: "风泽中孚", 宫卦五行: "土", 本卦地支: "巳卯丑未巳卯", 宫卦地支: "辰午申戌子寅", 本五行: "火木土土火木", 宫五行: "土火金土水木"},
+        {编码: "001011", 卦名: "风山渐", 宫卦五行: "土", 本卦地支: "辰午申未巳卯", 宫卦地支: "辰午申戌子寅", 本五行: "土火金土火木", 宫五行: "土火金土水木"},
+        {编码: "100100", 卦名: "震为雷", 宫卦五行: "木", 本卦地支: "子寅辰午申戌", 宫卦地支: "子寅辰午申戌", 本五行: "水木土火金土", 宫五行: "水木土火金土"},
+        {编码: "000100", 卦名: "雷地豫", 宫卦五行: "木", 本卦地支: "未巳卯午申戌", 宫卦地支: "子寅辰午申戌", 本五行: "土火木火金土", 宫五行: "水木土火金土"},
+        {编码: "010100", 卦名: "雷水解", 宫卦五行: "木", 本卦地支: "寅辰午午申戌", 宫卦地支: "子寅辰午申戌", 本五行: "木土火火金土", 宫五行: "水木土火金土"},
+        {编码: "011100", 卦名: "雷风恒", 宫卦五行: "木", 本卦地支: "丑亥酉午申戌", 宫卦地支: "子寅辰午申戌", 本五行: "土水金火金土", 宫五行: "水木土火金土"},
+        {编码: "011000", 卦名: "地风升", 宫卦五行: "木", 本卦地支: "丑亥酉丑亥酉", 宫卦地支: "子寅辰午申戌", 本五行: "土水金土水金", 宫五行: "水木土火金土"},
+        {编码: "011010", 卦名: "水风井", 宫卦五行: "木", 本卦地支: "丑亥酉申戌子", 宫卦地支: "子寅辰午申戌", 本五行: "土水金金土水", 宫五行: "水木土火金土"},
+        {编码: "011110", 卦名: "泽风大过", 宫卦五行: "木", 本卦地支: "丑亥酉亥酉未", 宫卦地支: "子寅辰午申戌", 本五行: "土水金水金土", 宫五行: "水木土火金土"},
+        {编码: "100110", 卦名: "泽雷随", 宫卦五行: "木", 本卦地支: "子寅辰亥酉未", 宫卦地支: "子寅辰午申戌", 本五行: "水木土水金土", 宫五行: "水木土火金土"},
+        {编码: "011011", 卦名: "巽为风", 宫卦五行: "木", 本卦地支: "丑亥酉未巳卯", 宫卦地支: "丑亥酉未巳卯", 本五行: "土水金土火木", 宫五行: "土水金土火木"},
+        {编码: "111011", 卦名: "风天小畜", 宫卦五行: "木", 本卦地支: "子寅辰未巳卯", 宫卦地支: "丑亥酉未巳卯", 本五行: "水木土土火木", 宫五行: "土水金土火木"},
+        {编码: "101011", 卦名: "风火家人", 宫卦五行: "木", 本卦地支: "卯丑亥未巳卯", 宫卦地支: "丑亥酉未巳卯", 本五行: "木土水土火木", 宫五行: "土水金土火木"},
+        {编码: "100011", 卦名: "风雷益", 宫卦五行: "木", 本卦地支: "子寅辰未巳卯", 宫卦地支: "丑亥酉未巳卯", 本五行: "水木土土火木", 宫五行: "土水金土火木"},
+        {编码: "100111", 卦名: "天雷无妄", 宫卦五行: "木", 本卦地支: "子寅辰午申戌", 宫卦地支: "丑亥酉未巳卯", 本五行: "水木土火金土", 宫五行: "土水金土火木"},
+        {编码: "100101", 卦名: "火雷噬嗑", 宫卦五行: "木", 本卦地支: "子寅辰酉未巳", 宫卦地支: "丑亥酉未巳卯", 本五行: "水木土金土火", 宫五行: "土水金土火木"},
+        {编码: "100001", 卦名: "山雷颐", 宫卦五行: "木", 本卦地支: "子寅辰戌子寅", 宫卦地支: "丑亥酉未巳卯", 本五行: "水木土土水木", 宫五行: "土水金土火木"},
+        {编码: "011001", 卦名: "山风蛊", 宫卦五行: "木", 本卦地支: "丑亥酉戌子寅", 宫卦地支: "丑亥酉未巳卯", 本五行: "土水金土水木", 宫五行: "土水金土火木"},
+        {编码: "101101", 卦名: "离为火", 宫卦五行: "火", 本卦地支: "卯丑亥酉未巳", 宫卦地支: "卯丑亥酉未巳", 本五行: "木土水金土火", 宫五行: "木土水金土火"},
+        {编码: "001101", 卦名: "火山旅", 宫卦五行: "火", 本卦地支: "辰午申酉未巳", 宫卦地支: "卯丑亥酉未巳", 本五行: "土火金金土火", 宫五行: "木土水金土火"},
+        {编码: "011101", 卦名: "火风鼎", 宫卦五行: "火", 本卦地支: "丑亥酉酉未巳", 宫卦地支: "卯丑亥酉未巳", 本五行: "土水金金土火", 宫五行: "木土水金土火"},
+        {编码: "010101", 卦名: "火水未济", 宫卦五行: "火", 本卦地支: "寅辰午酉未巳", 宫卦地支: "卯丑亥酉未巳", 本五行: "木土火金土火", 宫五行: "木土水金土火"},
+        {编码: "010001", 卦名: "山水蒙", 宫卦五行: "火", 本卦地支: "寅辰午戌子寅", 宫卦地支: "卯丑亥酉未巳", 本五行: "木土火土水木", 宫五行: "木土水金土火"},
+        {编码: "010011", 卦名: "风水涣", 宫卦五行: "火", 本卦地支: "寅辰午未巳卯", 宫卦地支: "卯丑亥酉未巳", 本五行: "木土火土火木", 宫五行: "木土水金土火"},
+        {编码: "010111", 卦名: "天水讼", 宫卦五行: "火", 本卦地支: "寅辰午午申戌", 宫卦地支: "卯丑亥酉未巳", 本五行: "木土火火金土", 宫五行: "木土水金土火"},
+        {编码: "101111", 卦名: "天火同人", 宫卦五行: "火", 本卦地支: "卯丑亥午申戌", 宫卦地支: "卯丑亥酉未巳", 本五行: "木土水火金土", 宫五行: "木土水金土火"},
+        {编码: "000000", 卦名: "坤为地", 宫卦五行: "土", 本卦地支: "未巳卯丑亥酉", 宫卦地支: "未巳卯丑亥酉", 本五行: "土火木土水金", 宫五行: "土火木土水金"},
+        {编码: "100000", 卦名: "地雷复", 宫卦五行: "土", 本卦地支: "子寅辰丑亥酉", 宫卦地支: "未巳卯丑亥酉", 本五行: "水木土土水金", 宫五行: "土火木土水金"},
+        {编码: "110000", 卦名: "地泽临", 宫卦五行: "土", 本卦地支: "巳卯丑丑亥酉", 宫卦地支: "未巳卯丑亥酉", 本五行: "火木土土水金", 宫五行: "土火木土水金"},
+        {编码: "111000", 卦名: "地天泰", 宫卦五行: "土", 本卦地支: "子寅辰丑亥酉", 宫卦地支: "未巳卯丑亥酉", 本五行: "水木土土水金", 宫五行: "土火木土水金"},
+        {编码: "111100", 卦名: "雷天大壮", 宫卦五行: "土", 本卦地支: "子寅辰午申戌", 宫卦地支: "未巳卯丑亥酉", 本五行: "水木土火金土", 宫五行: "土火木土水金"},
+        {编码: "111110", 卦名: "泽天夬", 宫卦五行: "土", 本卦地支: "子寅辰亥酉未", 宫卦地支: "未巳卯丑亥酉", 本五行: "水木土水金土", 宫五行: "土火木土水金"},
+        {编码: "111010", 卦名: "水天需", 宫卦五行: "土", 本卦地支: "子寅辰申戌子", 宫卦地支: "未巳卯丑亥酉", 本五行: "水木土金土水", 宫五行: "土火木土水金"},
+        {编码: "000010", 卦名: "水地比", 宫卦五行: "土", 本卦地支: "未巳卯申戌子", 宫卦地支: "未巳卯丑亥酉", 本五行: "土火木金土水", 宫五行: "土火木土水金"},
+        {编码: "110110", 卦名: "兑为泽", 宫卦五行: "金", 本卦地支: "巳卯丑亥酉未", 宫卦地支: "巳卯丑亥酉未", 本五行: "火木土水金土", 宫五行: "火木土水金土"},
+        {编码: "010110", 卦名: "泽水困", 宫卦五行: "金", 本卦地支: "寅辰午亥酉未", 宫卦地支: "巳卯丑亥酉未", 本五行: "木土火水金土", 宫五行: "火木土水金土"},
+        {编码: "000110", 卦名: "泽地萃", 宫卦五行: "金", 本卦地支: "未巳卯亥酉未", 宫卦地支: "巳卯丑亥酉未", 本五行: "土火木水金土", 宫五行: "火木土水金土"},
+        {编码: "001110", 卦名: "泽山咸", 宫卦五行: "金", 本卦地支: "辰午申亥酉未", 宫卦地支: "巳卯丑亥酉未", 本五行: "土火金水金土", 宫五行: "火木土水金土"},
+        {编码: "001010", 卦名: "水山蹇", 宫卦五行: "金", 本卦地支: "辰午申申戌子", 宫卦地支: "巳卯丑亥酉未", 本五行: "土火金金土水", 宫五行: "火木土水金土"},
+        {编码: "001000", 卦名: "地山谦", 宫卦五行: "金", 本卦地支: "辰午申丑亥酉", 宫卦地支: "巳卯丑亥酉未", 本五行: "土火金土水金", 宫五行: "火木土水金土"},
+        {编码: "001100", 卦名: "雷山小过", 宫卦五行: "金", 本卦地支: "辰午申午申戌", 宫卦地支: "巳卯丑亥酉未", 本五行: "土火金火金土", 宫五行: "火木土水金土"},
+        {编码: "110100", 卦名: "雷泽归妹", 宫卦五行: "金", 本卦地支: "巳卯丑午申戌", 宫卦地支: "巳卯丑亥酉未", 本五行: "火木土火金土", 宫五行: "火木土水金土"}
+];
+
+
+// 附表B：神五行对应表
+const tableB = {
+"甲": ["木", "火", "土", "土", "金", "水"],
+"乙": ["木", "火", "土", "土", "金", "水"],
+"丙": ["火", "土", "土", "金", "水", "木"],
+"丁": ["火", "土", "土", "金", "水", "木"],
+"戊": ["土", "土", "金", "水", "木", "火"],
+"己": ["土", "金", "水", "木", "火", "土"],
+"庚": ["金", "水", "木", "火", "土", "土"],
+"辛": ["金", "水", "木", "火", "土", "土"],
+"壬": ["水", "木", "火", "土", "土", "金"],
+"癸": ["水", "木", "火", "土", "土", "金"]
+};
+
+// 附表B2：六神对应表
+const tableB2 = {
+"甲": ["青龙", "朱雀", "腾蛇", "勾陈", "白虎", "玄武"],
+"乙": ["青龙", "朱雀", "腾蛇", "勾陈", "白虎", "玄武"],
+"丙": ["朱雀", "腾蛇", "勾陈", "白虎", "玄武", "青龙"],
+"丁": ["朱雀", "腾蛇", "勾陈", "白虎", "玄武", "青龙"],
+"戊": ["腾蛇", "勾陈", "白虎", "玄武", "青龙", "朱雀"],
+"己": ["勾陈", "白虎", "玄武", "青龙", "朱雀", "腾蛇"],
+"庚": ["白虎", "玄武", "青龙", "朱雀", "腾蛇", "勾陈"],
+"辛": ["白虎", "玄武", "青龙", "朱雀", "腾蛇", "勾陈"],
+"壬": ["玄武", "青龙", "朱雀", "腾蛇", "勾陈", "白虎"],
+"癸": ["玄武", "青龙", "朱雀", "腾蛇", "勾陈", "白虎"]
+};
+
+// 附表C：五行有力表
+const tableC = {
+        寅: ["木", "火"], 卯: ["木", "火"], 巳: ["火", "土"], 午: ["火", "土"],
+        申: ["金", "水"], 酉: ["金", "水"], 丑: ["金", "水"], 亥: ["水", "木"],
+        子: ["水", "木"], 辰: ["水", "木"], 未: ["木", "火", "土"], 戌: ["火", "土", "金"]
+};
+
+// 附表D：五行有气表
+const tableD = {
+        寅: ["木", "火"], 卯: ["木", "火"], 巳: ["金", "火"], 午: ["金", "火"],
+        申: ["土", "水", "金"], 酉: ["土", "水", "金"], 亥: ["土", "水", "木"],
+        子: ["土", "水", "木"], 丑: ["木"], 辰: ["火"], 未: ["金"], 戌: ["土", "水"]
+};
+
+// 附表E：五行作用表
+const tableE = {
+        "金金": "帮", "金水": "生", "金木": "克", "金火": "耗", "金土": "泄",
+        "水水": "帮", "水木": "生", "水火": "克", "水土": "耗", "水金": "泄",
+        "木木": "帮", "木火": "生", "木土": "克", "木金": "耗", "木水": "泄",
+        "火火": "帮", "火土": "生", "火金": "克", "火水": "耗", "火木": "泄",
+        "土土": "帮", "土金": "生", "土水": "克", "土木": "耗", "土火": "泄"
+};
+
+// 示例附表F（旺弱格局 + 作用关系 对应 吉凶）
+const tableF = [
+    {组合: "旺格生", 吉凶: "凶"},
+    {组合: "旺格帮", 吉凶: "凶"},
+    {组合: "旺格克", 吉凶: "吉"},
+    {组合: "旺格泄", 吉凶: "吉"},
+    {组合: "旺格耗", 吉凶: "吉"},
+    {组合: "从弱格生", 吉凶: "凶"},
+    {组合: "从弱格帮", 吉凶: "凶"},
+    {组合: "从弱格克", 吉凶: "吉"},
+    {组合: "从弱格泄", 吉凶: "吉"},
+    {组合: "从弱格耗", 吉凶: "吉"},
+    {组合: "弱格生", 吉凶: "吉"},
+    {组合: "弱格帮", 吉凶: "吉"},
+    {组合: "弱格克", 吉凶: "凶"},
+    {组合: "弱格泄", 吉凶: "凶"},
+    {组合: "弱格耗", 吉凶: "凶"},
+    {组合: "从旺格生", 吉凶: "吉"},
+    {组合: "从旺格帮", 吉凶: "吉"},
+    {组合: "从旺格克", 吉凶: "凶"},
+    {组合: "从旺格泄", 吉凶: "凶"},
+    {组合: "从旺格耗", 吉凶: "凶"}
+];
+
+
+const liuQinTable = [
+    { 五行组合: '金金', 六亲关系: '兄弟' },
+    { 五行组合: '金水', 六亲关系: '子孙' },
+    { 五行组合: '金木', 六亲关系: '妻财' },
+    { 五行组合: '金火', 六亲关系: '官鬼' },
+    { 五行组合: '金土', 六亲关系: '父母' },
+    { 五行组合: '水水', 六亲关系: '兄弟' },
+    { 五行组合: '水木', 六亲关系: '子孙' },
+    { 五行组合: '水火', 六亲关系: '妻财' },
+    { 五行组合: '水土', 六亲关系: '官鬼' },
+    { 五行组合: '水金', 六亲关系: '父母' },
+    { 五行组合: '木木', 六亲关系: '兄弟' },
+    { 五行组合: '木火', 六亲关系: '子孙' },
+    { 五行组合: '木土', 六亲关系: '妻财' },
+    { 五行组合: '木金', 六亲关系: '官鬼' },
+    { 五行组合: '木水', 六亲关系: '父母' },
+    { 五行组合: '火火', 六亲关系: '兄弟' },
+    { 五行组合: '火土', 六亲关系: '子孙' },
+    { 五行组合: '火金', 六亲关系: '妻财' },
+    { 五行组合: '火水', 六亲关系: '官鬼' },
+    { 五行组合: '火木', 六亲关系: '父母' },
+    { 五行组合: '土土', 六亲关系: '兄弟' },
+    { 五行组合: '土金', 六亲关系: '子孙' },
+    { 五行组合: '土水', 六亲关系: '妻财' },
+    { 五行组合: '土木', 六亲关系: '官鬼' },
+    { 五行组合: '土火', 六亲关系: '父母' }
+];
+
+//月份天干地支表
+const tableG = [
+        {月份天干: "丙", 月份地支: "子", 开始日期: "2024/12/6", 结束日期: "2025/1/4"},
+        {月份天干: "丁", 月份地支: "丑", 开始日期: "2025/1/5", 结束日期: "2025/2/2"},
+        {月份天干: "戊", 月份地支: "寅", 开始日期: "2025/2/3", 结束日期: "2025/3/4"},
+        {月份天干: "己", 月份地支: "卯", 开始日期: "2025/3/5", 结束日期: "2025/4/3"},
+        {月份天干: "庚", 月份地支: "辰", 开始日期: "2025/4/4", 结束日期: "2025/5/4"},
+        {月份天干: "辛", 月份地支: "巳", 开始日期: "2025/5/5", 结束日期: "2025/6/4"},
+        {月份天干: "壬", 月份地支: "午", 开始日期: "2025/6/5", 结束日期: "2025/7/6"},
+        {月份天干: "癸", 月份地支: "未", 开始日期: "2025/7/7", 结束日期: "2025/8/6"},
+        {月份天干: "甲", 月份地支: "申", 开始日期: "2025/8/7", 结束日期: "2025/9/6"},
+        {月份天干: "乙", 月份地支: "酉", 开始日期: "2025/9/7", 结束日期: "2025/10/7"},
+        {月份天干: "丙", 月份地支: "戌", 开始日期: "2025/10/8", 结束日期: "2025/11/6"},
+        {月份天干: "丁", 月份地支: "亥", 开始日期: "2025/11/7", 结束日期: "2025/12/6"},
+        {月份天干: "戊", 月份地支: "子", 开始日期: "2025/12/7", 结束日期: "2026/1/4"},
+        {月份天干: "己", 月份地支: "丑", 开始日期: "2026/1/5", 结束日期: "2026/2/3"},
+        {月份天干: "庚", 月份地支: "寅", 开始日期: "2026/2/4", 结束日期: "2026/3/4"},
+        {月份天干: "辛", 月份地支: "卯", 开始日期: "2026/3/5", 结束日期: "2026/4/4"},
+        {月份天干: "壬", 月份地支: "辰", 开始日期: "2026/4/5", 结束日期: "2026/5/4"},
+        {月份天干: "癸", 月份地支: "巳", 开始日期: "2026/5/5", 结束日期: "2026/6/4"},
+        {月份天干: "甲", 月份地支: "午", 开始日期: "2026/6/5", 结束日期: "2026/7/6"},
+        {月份天干: "乙", 月份地支: "未", 开始日期: "2026/7/7", 结束日期: "2026/8/6"},
+        {月份天干: "丙", 月份地支: "申", 开始日期: "2026/8/7", 结束日期: "2026/9/6"},
+        {月份天干: "丁", 月份地支: "酉", 开始日期: "2026/9/7", 结束日期: "2026/10/7"},
+        {月份天干: "戊", 月份地支: "戌", 开始日期: "2026/10/8", 结束日期: "2026/11/6"},
+        {月份天干: "己", 月份地支: "亥", 开始日期: "2026/11/7", 结束日期: "2026/12/6"},
+        {月份天干: "庚", 月份地支: "子", 开始日期: "2026/12/7", 结束日期: "2027/1/4"},
+        {月份天干: "辛", 月份地支: "丑", 开始日期: "2027/1/5", 结束日期: "2027/2/3"}
+];
+
+
+//年份五行表
+const tableH = [
+        {五行: "土", 年份: "2024"},
+        {五行: "火", 年份: "2025"},
+        {五行: "水", 年份: "2026"},
+        {五行: "金", 年份: "2027"},
+        {五行: "火", 年份: "2028"},
+        {五行: "木", 年份: "2029"},
+        {五行: "金", 年份: "2030"},
+        {五行: "土", 年份: "2031"}
+]
+
+//年份益五行表
+const tableI = [
+        {基准五行: "金", 益五行: "金"},
+        {基准五行: "木", 益五行: "木"},
+        {基准五行: "水", 益五行: "水"},
+        {基准五行: "火", 益五行: "火"},
+        {基准五行: "土", 益五行: "土"}
+]
+
+//年份损五行表
+const tableJ = [
+        {基准五行: "金", 损五行: "木"},
+        {基准五行: "木", 损五行: "金"},
+        {基准五行: "水", 损五行: "火"},
+        {基准五行: "水", 损五行: "土"},
+        {基准五行: "火", 损五行: "水"},
+        {基准五行: "土", 损五行: "水"}
+]
+
+
+
+</script>
+</body>
+</html>
